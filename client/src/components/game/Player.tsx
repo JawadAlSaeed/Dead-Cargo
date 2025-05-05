@@ -1,30 +1,66 @@
-import { useRef, useEffect } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useRef, useEffect, useState } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useZombies } from "../../lib/stores/useZombies";
 import { useAudio } from "../../lib/stores/useAudio";
-import { checkCollision } from "../../lib/utils/collision";
+import { checkCollision, getDistance } from "../../lib/utils/collision";
 import { useRooms } from "../../lib/stores/useRooms";
 import { useGame } from "../../lib/stores/useGame";
 
 const Player = () => {
   const playerRef = useRef<THREE.Mesh>(null);
   const playerModel = useRef<THREE.Group>(null);
-  const { position, health, damage, heal, move, setPosition, setRotation } = usePlayer();
+  const { position, health, damage, heal, move, setPosition, setRotation, rotation } = usePlayer();
   const { zombies } = useZombies();
   const { playHit } = useAudio();
   const { currentRoom, walls, doors, roomObjects, captainCabin } = useRooms();
   const { end } = useGame();
+  const { camera, gl } = useThree();
   
   // Get keyboard controls
   const [, getKeys] = useKeyboardControls();
+
+  // Mouse position for aiming
+  const [mousePos, setMousePos] = useState({ x: 0, z: 0 });
+  
+  // Setup mouse controls for aiming
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      // Get mouse position in normalized device coordinates (-1 to +1)
+      const x = (event.clientX / window.innerWidth) * 2 - 1;
+      const y = -(event.clientY / window.innerHeight) * 2 + 1;
+      
+      // Create ray from camera
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+      
+      // Find intersection with the ground plane
+      const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      const target = new THREE.Vector3();
+      raycaster.ray.intersectPlane(groundPlane, target);
+      
+      setMousePos({ x: target.x, z: target.z });
+    };
+    
+    // Add mouse move listener
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, [camera]);
   
   // Initialize player
   useEffect(() => {
-    console.log("Player initialized");
-  }, []);
+    console.log("Player initialized with mouse aiming");
+    // Lock pointer for FPS-style mouse control
+    const canvas = gl.domElement;
+    canvas.onclick = () => {
+      canvas.requestPointerLock();
+    };
+  }, [gl]);
   
   // Player game logic
   useFrame((state, delta) => {
@@ -36,16 +72,22 @@ const Player = () => {
       let moveX = 0;
       let moveZ = 0;
       
-      // Calculate movement direction
-      if (forward) moveZ -= speed;
-      if (backward) moveZ += speed;
-      if (leftward) moveX -= speed;
-      if (rightward) moveX += speed;
-      
-      // Normalize diagonal movement
-      if (moveX !== 0 && moveZ !== 0) {
-        moveX /= Math.sqrt(2);
-        moveZ /= Math.sqrt(2);
+      // Calculate movement direction relative to rotation
+      if (forward) {
+        moveX += Math.sin(rotation) * speed;
+        moveZ += Math.cos(rotation) * speed;
+      }
+      if (backward) {
+        moveX -= Math.sin(rotation) * speed;
+        moveZ -= Math.cos(rotation) * speed;
+      }
+      if (leftward) {
+        moveX -= Math.cos(rotation) * speed;
+        moveZ += Math.sin(rotation) * speed;
+      }
+      if (rightward) {
+        moveX += Math.cos(rotation) * speed;
+        moveZ -= Math.sin(rotation) * speed;
       }
       
       // Calculate new position
@@ -118,26 +160,41 @@ const Player = () => {
         
         // Set player position in the 3D scene
         playerRef.current.position.set(newX, 0.25, newZ);
-        
-        // Set rotation based on movement direction
-        if (moveX !== 0 || moveZ !== 0) {
-          const angle = Math.atan2(moveX, moveZ);
-          playerModel.current.rotation.y = angle;
-          setRotation(angle);
-        }
       }
+      
+      // Calculate angle to mouse position for aiming
+      const dx = mousePos.x - position.x;
+      const dz = mousePos.z - position.z;
+      const angleToMouse = Math.atan2(dx, dz);
+      
+      // Set player rotation to face mouse position
+      playerModel.current.rotation.y = angleToMouse;
+      setRotation(angleToMouse);
       
       // Handle attack input
       if (attack) {
-        console.log("Player attacking");
-        // Check for zombies in attack range
+        console.log("Player attacking in direction:", angleToMouse);
+        // Check for zombies in attack range and within field of view
         zombies.forEach(zombie => {
-          const distance = Math.sqrt(
-            Math.pow(position.x - zombie.position.x, 2) + 
-            Math.pow(position.z - zombie.position.z, 2)
+          const distance = getDistance(
+            position.x, position.z,
+            zombie.position.x, zombie.position.z
           );
           
-          if (distance < 1.5) {
+          // Calculate angle to zombie
+          const zombieDx = zombie.position.x - position.x;
+          const zombieDz = zombie.position.z - position.z;
+          const angleToZombie = Math.atan2(zombieDx, zombieDz);
+          
+          // Calculate angle difference
+          let angleDiff = Math.abs(angleToMouse - angleToZombie);
+          if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+          
+          // Check if zombie is in field of view (within 35% of full circle = ~126 degrees)
+          const fieldOfViewAngle = Math.PI * 0.7; // 126 degrees in radians
+          const inFieldOfView = angleDiff <= fieldOfViewAngle / 2;
+          
+          if (distance < 1.5 && inFieldOfView) {
             // Hit zombie
             playHit();
             const zombieStore = useZombies.getState();
@@ -148,9 +205,9 @@ const Player = () => {
       
       // Check for zombie collisions (taking damage)
       zombies.forEach(zombie => {
-        const distance = Math.sqrt(
-          Math.pow(position.x - zombie.position.x, 2) + 
-          Math.pow(position.z - zombie.position.z, 2)
+        const distance = getDistance(
+          position.x, position.z,
+          zombie.position.x, zombie.position.z
         );
         
         if (distance < 0.8 && zombie.attackCooldown <= 0) {
@@ -180,6 +237,12 @@ const Player = () => {
       >
         <boxGeometry args={[0.5, 0.5, 0.5]} />
         <meshStandardMaterial color="#3498db" />
+        
+        {/* Field of view indicator */}
+        <mesh position={[0, 0, -0.5]} rotation={[0, 0, 0]}>
+          <coneGeometry args={[0.4, 1, 32, 1, true]} />
+          <meshBasicMaterial color="#3498db" transparent opacity={0.3} />
+        </mesh>
       </mesh>
     </group>
   );

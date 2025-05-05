@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import Player from "./Player";
 import Zombie from "./Zombie";
 import Room from "./Room";
@@ -7,11 +8,16 @@ import { usePlayer } from "../../lib/stores/usePlayer";
 import { useZombies } from "../../lib/stores/useZombies";
 import { useRooms } from "../../lib/stores/useRooms";
 import ProcGenRooms from "./ProcGenRooms";
+import * as THREE from "three";
 
 const CruiseShip = () => {
-  const { position } = usePlayer();
+  const { position, rotation } = usePlayer();
   const { zombies } = useZombies();
-  const { currentRoom, generateShip } = useRooms();
+  const { currentRoom, generateShip, rooms } = useRooms();
+  const cameraRef = useRef<THREE.OrthographicCamera>(null);
+  
+  // Track which zombies are visible (in field of view)
+  const [visibleZombies, setVisibleZombies] = useState<string[]>([]);
   
   // Initialize the cruise ship on component mount
   useEffect(() => {
@@ -19,10 +25,43 @@ const CruiseShip = () => {
     generateShip();
   }, [generateShip]);
   
+  // Update camera position to follow player
+  useFrame(() => {
+    if (cameraRef.current) {
+      cameraRef.current.position.x = position.x;
+      cameraRef.current.position.z = position.z;
+      
+      // Calculate which zombies are in the player's field of view
+      const zombiesInRoom = zombies.filter(zombie => zombie.roomId === currentRoom);
+      const visible = zombiesInRoom.filter(zombie => {
+        // Calculate angle to zombie
+        const dx = zombie.position.x - position.x;
+        const dz = zombie.position.z - position.z;
+        const angleToZombie = Math.atan2(dx, dz);
+        
+        // Calculate difference between player's facing angle and zombie angle
+        let angleDiff = Math.abs(rotation - angleToZombie);
+        if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
+        
+        // Field of view is 35% of a full circle (126 degrees)
+        const fieldOfViewAngle = Math.PI * 0.7; // 126 degrees in radians
+        return angleDiff <= fieldOfViewAngle / 2;
+      }).map(zombie => zombie.id);
+      
+      setVisibleZombies(visible);
+    }
+  });
+  
+  // Current room data
+  const currentRoomData = currentRoom && rooms[currentRoom] 
+    ? rooms[currentRoom] 
+    : null;
+  
   return (
     <>
       {/* Top-down orthographic camera that follows the player */}
       <OrthographicCamera
+        ref={cameraRef}
         makeDefault
         position={[position.x, 10, position.z]}
         zoom={40}
@@ -36,16 +75,19 @@ const CruiseShip = () => {
       {/* Current Room */}
       <Room 
         roomId={currentRoom} 
-        roomType={useRooms.getState().rooms[currentRoom]?.type || "standard"} 
+        roomType={currentRoomData?.type || "standard"} 
         isActive={true} 
       />
       
       {/* Player */}
       <Player />
       
-      {/* Zombies in current room */}
+      {/* Zombies in current room - only render visible ones */}
       {zombies
-        .filter(zombie => zombie.roomId === currentRoom)
+        .filter(zombie => 
+          zombie.roomId === currentRoom && 
+          (visibleZombies.includes(zombie.id) || zombie.attackCooldown > 0)
+        )
         .map(zombie => (
           <Zombie 
             key={zombie.id} 
