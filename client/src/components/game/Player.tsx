@@ -22,10 +22,12 @@ const Player = () => {
   // Get keyboard controls
   const [, getKeys] = useKeyboardControls();
 
-  // Mouse position for aiming
+  // Mouse position for aiming and shooting
   const [mousePos, setMousePos] = useState({ x: 0, z: 0 });
+  const [isAiming, setIsAiming] = useState(false);
+  const [isShooting, setIsShooting] = useState(false);
   
-  // Setup mouse controls for aiming
+  // Setup mouse controls for aiming and shooting
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       // Get mouse position in normalized device coordinates (-1 to +1)
@@ -44,11 +46,45 @@ const Player = () => {
       setMousePos({ x: target.x, z: target.z });
     };
     
-    // Add mouse move listener
+    // Handle mouse down for aiming (right click) and shooting (left click)
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.button === 2) { // Right click
+        event.preventDefault();
+        setIsAiming(true);
+        console.log("Right mouse down - Aiming");
+      } else if (event.button === 0) { // Left click
+        setIsShooting(true);
+        console.log("Left mouse down - Shooting");
+      }
+    };
+    
+    // Handle mouse up to stop aiming or shooting
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button === 2) { // Right click
+        setIsAiming(false);
+        console.log("Right mouse up - Stopped aiming");
+      } else if (event.button === 0) { // Left click
+        setIsShooting(false);
+        console.log("Left mouse up - Stopped shooting");
+      }
+    };
+    
+    // Handle context menu to prevent it from appearing on right-click
+    const handleContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    
+    // Add event listeners
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('contextmenu', handleContextMenu);
     
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [camera]);
   
@@ -80,22 +116,19 @@ const Player = () => {
       let moveX = 0;
       let moveZ = 0;
       
-      // Calculate movement direction relative to rotation
+      // WASD moves player independently of facing direction
+      // Forward is always forward in world space, not relative to player rotation
       if (forward) {
-        moveX += Math.sin(rotation) * speed;
-        moveZ += Math.cos(rotation) * speed;
+        moveZ -= speed; // Forward is -Z in world space
       }
       if (backward) {
-        moveX -= Math.sin(rotation) * speed;
-        moveZ -= Math.cos(rotation) * speed;
+        moveZ += speed; // Backward is +Z in world space
       }
       if (leftward) {
-        moveX -= Math.cos(rotation) * speed;
-        moveZ += Math.sin(rotation) * speed;
+        moveX -= speed; // Left is -X in world space
       }
       if (rightward) {
-        moveX += Math.cos(rotation) * speed;
-        moveZ -= Math.sin(rotation) * speed;
+        moveX += speed; // Right is +X in world space
       }
       
       // Calculate new position
@@ -179,9 +212,9 @@ const Player = () => {
       playerModel.current.rotation.y = angleToMouse;
       setRotation(angleToMouse);
       
-      // Handle attack input
-      if (attack) {
-        console.log("Player attacking in direction:", angleToMouse);
+      // Handle shooting (left mouse button)
+      if (isShooting && isAiming) {
+        console.log("Player shooting in direction:", angleToMouse);
         // Check for zombies in attack range and within field of view
         zombies.forEach(zombie => {
           const distance = getDistance(
@@ -202,13 +235,19 @@ const Player = () => {
           const fieldOfViewAngle = Math.PI * 0.7; // 126 degrees in radians
           const inFieldOfView = angleDiff <= fieldOfViewAngle / 2;
           
-          if (distance < 1.5 && inFieldOfView) {
+          if (distance < 5.0 && inFieldOfView) { // Increased range for shooting
             // Hit zombie
             playHit();
             const zombieStore = useZombies.getState();
             zombieStore.damageZombie(zombie.id, 25);
           }
         });
+      }
+      
+      // Handle aiming visual indicator
+      if (isAiming) {
+        // Visual changes when aiming could be added here
+        // Like changing the player model or showing a targeting reticle
       }
       
       // Check for zombie collisions (taking damage)
@@ -254,13 +293,36 @@ const Player = () => {
         <meshBasicMaterial color="#0088ff" />
       </mesh>
       
-      {/* Extra position marker */}
+      {/* Player head/marker */}
       <mesh 
         position={[0, 1.5, 0]}
       >
         <sphereGeometry args={[0.5, 16, 16]} />
         <meshBasicMaterial color="#ff00ff" />
       </mesh>
+      
+      {/* Aiming indicator - only shown when right-clicking to aim */}
+      {isAiming && (
+        <group>
+          {/* Aiming laser line */}
+          <mesh 
+            position={[0, 0.5, 4]} 
+            scale={[0.2, 0.2, 8]}
+          >
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color="#ff0000" transparent opacity={0.6} />
+          </mesh>
+          
+          {/* Aiming circle at end of laser */}
+          <mesh 
+            position={[0, 0.5, 8]} 
+            rotation={[Math.PI/2, 0, 0]}
+          >
+            <circleGeometry args={[0.5, 16]} />
+            <meshBasicMaterial color="#ff0000" transparent opacity={0.8} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 };
