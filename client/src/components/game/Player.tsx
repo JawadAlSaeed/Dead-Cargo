@@ -229,34 +229,59 @@ const Player = () => {
   
   return (
     <group ref={playerModel}>
-      {/* Player body */}
+      {/* Player top-down view marker (bright circle) */}
       <mesh 
         ref={playerRef}
-        position={[position.x, 0.25, position.z]}
-        castShadow
-        receiveShadow
+        position={[position.x, 0.05, position.z]}
+        rotation={[-Math.PI / 2, 0, 0]}
       >
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="#3498db" emissive="#3498db" emissiveIntensity={0.2} />
+        <circleGeometry args={[0.4, 32]} />
+        <meshBasicMaterial color="#00aaff" />
       </mesh>
       
-      {/* Player head */}
-      <mesh position={[0, 0.5, 0]}>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color="#2980b9" />
+      {/* Player direction indicator (arrow) */}
+      <mesh 
+        position={[0, 0.06, -0.2]} 
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <coneGeometry args={[0.2, 0.5, 32]} />
+        <meshBasicMaterial color="#0088cc" />
       </mesh>
       
-      {/* Player weapon/arm */}
-      <mesh position={[0.3, 0.25, -0.2]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[0.4, 0.1, 0.1]} />
-        <meshStandardMaterial color="#2c3e50" />
+      {/* Player text label (always faces up) */}
+      <mesh 
+        position={[0, 0.3, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <planeGeometry args={[1, 0.3]} />
+        <meshBasicMaterial 
+          color="#1166ff" 
+          opacity={0.8} 
+          transparent 
+        />
+      </mesh>
+      
+      {/* Player outline circle (for better visibility) */}
+      <mesh 
+        position={[0, 0.04, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.43, 0.45, 32]} />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       
       {/* Field of view indicator */}
-      <group position={[0, 0.1, 0]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[1.5, 32, Math.PI * 0.65, Math.PI * 0.7]} />
-          <meshBasicMaterial color="#3498db" side={THREE.DoubleSide} transparent opacity={0.1} />
+      <group position={[0, 0.02, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+          <ringBufferGeometry 
+            args={[1.8, 2.0, 32, 4, 0, Math.PI * 0.7]} 
+          />
+          <meshBasicMaterial 
+            color="#3399ff" 
+            side={THREE.DoubleSide} 
+            transparent 
+            opacity={0.2} 
+          />
         </mesh>
       </group>
     </group>

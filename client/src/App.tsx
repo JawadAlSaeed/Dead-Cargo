@@ -60,23 +60,21 @@ function App() {
               <Canvas
                 shadows
                 camera={{
-                  position: [0, 10, 0],
+                  position: [0, 15, 0],
                   rotation: [-Math.PI / 2, 0, 0],
-                  fov: 60,
+                  fov: 50,
                   near: 0.1,
                   far: 1000
                 }}
                 gl={{
                   antialias: true,
                   powerPreference: "default",
-                  alpha: true
                 }}
-                style={{ background: "#222222" }}
+                style={{ background: "#111111" }}
               >
-                <color attach="background" args={["#222222"]} />
-                <ambientLight intensity={0.7} />
-                <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-                <hemisphereLight args={["#7a9ad1", "#5b6a7b", 0.7]} />
+                <color attach="background" args={["#111111"]} />
+                <ambientLight intensity={1.0} />
+                <directionalLight position={[0, 10, 0]} intensity={1.5} castShadow />
                 
                 <Suspense fallback={null}>
                   <CruiseShip />

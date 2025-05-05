@@ -98,49 +98,65 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
   
   return (
     <group ref={zombieModel}>
-      {/* Zombie body */}
+      {/* Zombie top-down marker (red circle) */}
       <mesh 
         ref={zombieRef}
-        position={[position.x, 0.25, position.z]}
-        castShadow
-        receiveShadow
+        position={[position.x, 0.05, position.z]}
+        rotation={[-Math.PI / 2, 0, 0]}
       >
-        <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="#e74c3c" emissive="#e74c3c" emissiveIntensity={0.2} />
+        <circleGeometry args={[0.4, 32]} />
+        <meshBasicMaterial color="#ff3333" />
       </mesh>
       
-      {/* Zombie head */}
-      <mesh position={[0, 0.5, 0]}>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshStandardMaterial color="#c0392b" />
-      </mesh>
-      
-      {/* Zombie arms */}
-      <mesh position={[0.3, 0.25, 0]} rotation={[0, 0, Math.PI / 4]}>
-        <boxGeometry args={[0.4, 0.1, 0.1]} />
-        <meshStandardMaterial color="#a0300e" />
-      </mesh>
-      
-      <mesh position={[-0.3, 0.25, 0]} rotation={[0, 0, -Math.PI / 4]}>
-        <boxGeometry args={[0.4, 0.1, 0.1]} />
-        <meshStandardMaterial color="#a0300e" />
-      </mesh>
-      
-      {/* Health bar */}
+      {/* Zombie direction indicator (arrow) */}
       <mesh 
-        position={[0, 0.8, 0]} 
-        rotation={[0, 0, 0]}
+        position={[0, 0.06, -0.2]} 
+        rotation={[-Math.PI / 2, 0, 0]}
       >
-        <planeGeometry args={[0.6, 0.1]} />
+        <coneGeometry args={[0.2, 0.5, 32]} />
+        <meshBasicMaterial color="#cc0000" />
+      </mesh>
+      
+      {/* Zombie "Z" label */}
+      <mesh 
+        position={[0, 0.3, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <planeGeometry args={[0.5, 0.5]} />
+        <meshBasicMaterial 
+          color="#ffaaaa" 
+          opacity={0.8} 
+          transparent 
+        />
+      </mesh>
+      
+      {/* Zigzag pattern around zombie (for the zombie look) */}
+      <mesh 
+        position={[0, 0.04, 0]} 
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.43, 0.46, 16, 1]} />
+        <meshBasicMaterial color="#ff0000" />
+      </mesh>
+      
+      {/* Health bar background - rotated to be top-down */}
+      <mesh 
+        position={[0, 0.07, -0.6]} 
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[1, 0.2, 1]}
+      >
+        <planeGeometry args={[0.6, 0.3]} />
         <meshBasicMaterial color="#333333" />
       </mesh>
       
+      {/* Health bar foreground - rotated to be top-down */}
       <mesh 
-        position={[-0.3 + (0.6 * (health / 100)) / 2, 0.8, 0.01]} 
-        rotation={[0, 0, 0]}
+        position={[0, 0.08, -0.6]} 
+        rotation={[-Math.PI / 2, 0, 0]}
+        scale={[(health / 100), 0.15, 1]}
       >
-        <planeGeometry args={[0.6 * (health / 100), 0.1]} />
-        <meshBasicMaterial color="#e74c3c" />
+        <planeGeometry args={[0.6, 0.3]} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
     </group>
   );

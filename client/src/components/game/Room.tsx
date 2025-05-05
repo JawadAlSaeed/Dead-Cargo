@@ -125,102 +125,220 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
         >
           <planeGeometry args={[roomData.size.width, roomData.size.height]} />
           <meshStandardMaterial 
-            map={floorTexture}
+            color="#334455"
             roughness={0.8}
-            emissive="#555555"
-            emissiveIntensity={0.1}
           />
         </mesh>
         
-        {/* Floor grid for better visibility */}
+        {/* Floor pattern for better visibility */}
         <mesh 
           position={[0, 0.01, 0]} 
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <planeGeometry args={[roomData.size.width, roomData.size.height]} />
           <meshBasicMaterial 
-            color="#333333"
+            color="#222222"
             wireframe={true}
             transparent={true}
-            opacity={0.3}
+            opacity={0.5}
           />
         </mesh>
         
-        {/* Walls */}
+        {/* Border outline for the room */}
+        <mesh
+          position={[0, 0.02, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <ringGeometry args={[
+            Math.min(roomData.size.width, roomData.size.height) / 2 - 0.1,
+            Math.min(roomData.size.width, roomData.size.height) / 2,
+            32
+          ]} />
+          <meshBasicMaterial color="#3399ff" transparent opacity={0.3} />
+        </mesh>
+        
+        {/* Walls - flat outlines for better top-down visibility */}
         {roomData.walls.map((wall, index) => (
-          <mesh
-            key={`wall-${index}`}
-            position={[wall.position.x, 0.5, wall.position.z]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[wall.size.width, 1, wall.size.height]} />
-            <meshStandardMaterial 
-              map={wallTexture}
-              color="#8B4513"
-              emissive="#553311"
-              emissiveIntensity={0.2}
-            />
-          </mesh>
+          <group key={`wall-${index}`}>
+            {/* Wall base (darker color) */}
+            <mesh
+              position={[wall.position.x, 0.1, wall.position.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[wall.size.width, wall.size.height]} />
+              <meshBasicMaterial color="#6d432a" />
+            </mesh>
+            
+            {/* Wall outline (brighter) */}
+            <mesh
+              position={[wall.position.x, 0.11, wall.position.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[wall.size.width - 0.05, wall.size.height - 0.05]} />
+              <meshBasicMaterial color="#a06640" />
+            </mesh>
+            
+            {/* Wall pattern */}
+            <mesh
+              position={[wall.position.x, 0.12, wall.position.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[wall.size.width - 0.1, wall.size.height - 0.1]} />
+              <meshBasicMaterial 
+                color="#553311" 
+                wireframe={true}
+              />
+            </mesh>
+          </group>
         ))}
         
-        {/* Room Objects (furniture, items, etc.) */}
+        {/* Room Objects (furniture, items, etc.) - top-down visible as colored areas */}
         {roomData.objects.map((object, index) => {
           // Check if this is the interactive object nearby
           const isNearby = interactiveObjectNearby?.index === index;
+          const baseColor = object.color || (object.interactable ? "#cc9966" : "#A0522D");
           
           return (
             <group key={`object-${index}`}>
+              {/* Object base */}
               <mesh
-                position={[object.position.x, 0.25, object.position.z]}
-                castShadow
-                receiveShadow
+                position={[object.position.x, 0.08, object.position.z]}
+                rotation={[-Math.PI / 2, 0, 0]}
               >
-                <boxGeometry args={[object.size.width, 0.5, object.size.height]} />
-                <meshStandardMaterial 
-                  color={object.color || "#A0522D"} 
-                  // Highlight interactive objects when nearby
-                  emissive={object.interactable && isNearby ? "#ffff00" : "#000000"}
-                  emissiveIntensity={0.5}
+                <planeGeometry args={[object.size.width, object.size.height]} />
+                <meshBasicMaterial color={baseColor} />
+              </mesh>
+              
+              {/* Object pattern */}
+              <mesh
+                position={[object.position.x, 0.09, object.position.z]}
+                rotation={[-Math.PI / 2, 0, 0]}
+              >
+                <planeGeometry args={[object.size.width - 0.05, object.size.height - 0.05]} />
+                <meshBasicMaterial 
+                  color={object.interactable ? "#ddaa77" : "#b05e2c"}
+                  wireframe={true}
                 />
               </mesh>
               
-              {/* Interaction indicator */}
-              {object.interactable && isNearby && (
+              {/* Icon for interactable objects */}
+              {object.interactable && (
                 <mesh
-                  position={[object.position.x, 1, object.position.z]}
-                  rotation={[0, 0, 0]}
+                  position={[object.position.x, 0.1, object.position.z]}
+                  rotation={[-Math.PI / 2, 0, 0]}
                 >
-                  <sphereGeometry args={[0.2, 8, 8]} />
-                  <meshBasicMaterial color="#ffff00" transparent opacity={0.7} />
+                  <circleGeometry args={[0.2, 8]} />
+                  <meshBasicMaterial 
+                    color={isNearby ? "#ffff00" : "#ffffff"} 
+                    opacity={isNearby ? 0.9 : 0.6}
+                    transparent
+                  />
                 </mesh>
+              )}
+              
+              {/* Interaction indicator when nearby */}
+              {object.interactable && isNearby && (
+                <group>
+                  <mesh
+                    position={[object.position.x, 0.15, object.position.z]}
+                    rotation={[-Math.PI / 2, 0, 0]}
+                  >
+                    <ringGeometry args={[0.3, 0.35, 16]} />
+                    <meshBasicMaterial color="#ffff00" />
+                  </mesh>
+                  
+                  <mesh
+                    position={[object.position.x, 0.2, object.position.z]}
+                    rotation={[-Math.PI / 2, 0, 0]}
+                  >
+                    <planeGeometry args={[0.8, 0.3]} />
+                    <meshBasicMaterial 
+                      color="#222222" 
+                      opacity={0.8} 
+                      transparent
+                    />
+                  </mesh>
+                </group>
               )}
             </group>
           );
         })}
         
-        {/* Doors */}
+        {/* Doors - much more visible in top-down view */}
         {roomData.doors.map((door, index) => (
-          <mesh
-            key={`door-${index}`}
-            position={[door.position.x, 0.5, door.position.z]}
-            castShadow
-            receiveShadow
-          >
-            <boxGeometry args={[door.size.width, 1, door.size.height]} />
-            <meshStandardMaterial color={door.locked ? "#8B0000" : "#2E8B57"} />
-          </mesh>
+          <group key={`door-${index}`}>
+            {/* Door base */}
+            <mesh
+              position={[door.position.x, 0.07, door.position.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[door.size.width, door.size.height]} />
+              <meshBasicMaterial color={door.locked ? "#550000" : "#005500"} />
+            </mesh>
+            
+            {/* Door indicator for direction */}
+            <mesh
+              position={[
+                door.position.x, 
+                0.08, 
+                door.position.z
+              ]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[door.size.width * 0.7, door.size.height * 0.7]} />
+              <meshBasicMaterial color={door.locked ? "#990000" : "#00aa00"} />
+            </mesh>
+            
+            {/* Door icon */}
+            <mesh
+              position={[door.position.x, 0.09, door.position.z]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <circleGeometry args={[0.3, 16]} />
+              <meshBasicMaterial color={door.locked ? "#ff0000" : "#00ff00"} transparent opacity={0.7} />
+            </mesh>
+          </group>
         ))}
         
-        {/* Captain's Cabin marker if applicable */}
+        {/* Captain's Cabin marker if applicable - designed for top-down view */}
         {roomType === "captainCabin" && (
-          <mesh
-            position={[0, 1, 0]}
-            rotation={[0, 0, 0]}
-          >
-            <boxGeometry args={[1, 0.1, 1]} />
-            <meshStandardMaterial color="#FFD700" />
-          </mesh>
+          <group>
+            {/* Captain marker - gold star pattern */}
+            <mesh
+              position={[0, 0.15, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <ringGeometry args={[1.5, 1.8, 8, 1]} />
+              <meshBasicMaterial color="#FFD700" />
+            </mesh>
+            
+            {/* Inner marker */}
+            <mesh
+              position={[0, 0.14, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <ringGeometry args={[0.8, 1.0, 16, 1]} />
+              <meshBasicMaterial color="#FFD700" />
+            </mesh>
+            
+            {/* Center circle */}
+            <mesh
+              position={[0, 0.16, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <circleGeometry args={[0.6, 32]} />
+              <meshBasicMaterial color="#FFD700" opacity={0.5} transparent />
+            </mesh>
+            
+            {/* "Captain" text placeholder */}
+            <mesh
+              position={[0, 0.18, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
+              <planeGeometry args={[1.2, 0.4]} />
+              <meshBasicMaterial color="#222222" />
+            </mesh>
+          </group>
         )}
       </group>
       
