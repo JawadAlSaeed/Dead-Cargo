@@ -62,6 +62,14 @@ const Player = () => {
     };
   }, [gl]);
   
+  // Update actual model position whenever player position changes
+  useEffect(() => {
+    if (playerModel.current) {
+      playerModel.current.position.x = position.x;
+      playerModel.current.position.z = position.z;
+    }
+  }, [position]);
+  
   // Player game logic
   useFrame((state, delta) => {
     if (playerRef.current && playerModel.current) {
@@ -158,8 +166,8 @@ const Player = () => {
       if (canMove) {
         move({ x: newX, y: position.y, z: newZ });
         
-        // Set player position in the 3D scene
-        playerRef.current.position.set(newX, 0.25, newZ);
+        // We'll let the useEffect handle position updates
+        // playerRef.current.position is updated in useEffect
       }
       
       // Calculate angle to mouse position for aiming
@@ -232,7 +240,7 @@ const Player = () => {
       {/* Player top-down view marker (bright circle) */}
       <mesh 
         ref={playerRef}
-        position={[position.x, 0.05, position.z]}
+        position={[0, 0.05, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <circleGeometry args={[0.4, 32]} />
@@ -273,8 +281,8 @@ const Player = () => {
       {/* Field of view indicator */}
       <group position={[0, 0.02, 0]}>
         <mesh rotation={[-Math.PI / 2, 0, 0]}>
-          <ringBufferGeometry 
-            args={[1.8, 2.0, 32, 4, 0, Math.PI * 0.7]} 
+          <ringGeometry 
+            args={[1.8, 2.0, 32, 8, 0, Math.PI * 0.7]} 
           />
           <meshBasicMaterial 
             color="#3399ff" 

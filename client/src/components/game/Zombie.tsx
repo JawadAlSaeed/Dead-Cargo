@@ -96,12 +96,20 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
     }
   });
   
+  // Update actual position in the component
+  useEffect(() => {
+    if (zombieRef.current) {
+      zombieRef.current.position.x = position.x;
+      zombieRef.current.position.z = position.z;
+    }
+  }, [position]);
+
   return (
     <group ref={zombieModel}>
       {/* Zombie top-down marker (red circle) */}
       <mesh 
         ref={zombieRef}
-        position={[position.x, 0.05, position.z]}
+        position={[0, 0.05, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
         <circleGeometry args={[0.4, 32]} />
