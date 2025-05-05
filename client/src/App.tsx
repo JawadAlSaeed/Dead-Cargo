@@ -1,9 +1,9 @@
 import React from 'react';
-import SimpleGame from './SimpleGame';
+import FullGame from './FullGame';
 
-// Using SimpleGame as a simplified version of our game
+// Using our newly designed game with improved rendering
 function App() {
-  return <SimpleGame />;
+  return <FullGame />;
 }
 
 export default App;
