@@ -23,11 +23,11 @@ const ProcGenRooms = () => {
       // Set the current room and position the player in it
       setCurrentRoom(startingRoomId);
       
-      // Position player in the center of the room
-      setPosition({ x: 0, y: 0.25, z: 0 });
+      // Position player in the center of the room (slightly offset to see better)
+      setPosition({ x: 0.5, y: 0.25, z: 0.5 });
       
-      // Spawn initial zombies
-      spawnZombies(startingRoomId, Math.floor(Math.random() * 2) + 1);
+      // Spawn initial zombies - fewer at start for easier beginning
+      spawnZombies(startingRoomId, 1);
       
       // Generate connected rooms
       for (let i = 0; i < 3; i++) {

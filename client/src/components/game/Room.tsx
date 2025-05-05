@@ -33,10 +33,16 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
   const floorTexture = useTexture("/textures/wood.jpg");
   floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
   floorTexture.repeat.set(5, 5);
+  floorTexture.minFilter = THREE.LinearFilter;
+  floorTexture.magFilter = THREE.LinearFilter;
+  floorTexture.needsUpdate = true;
   
   const wallTexture = useTexture("/textures/wood.jpg");
   wallTexture.wrapS = wallTexture.wrapT = THREE.RepeatWrapping;
   wallTexture.repeat.set(2, 1);
+  wallTexture.minFilter = THREE.LinearFilter;
+  wallTexture.magFilter = THREE.LinearFilter;
+  wallTexture.needsUpdate = true;
   
   // Check if player is near interactive objects
   useEffect(() => {
@@ -121,6 +127,22 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
           <meshStandardMaterial 
             map={floorTexture}
             roughness={0.8}
+            emissive="#555555"
+            emissiveIntensity={0.1}
+          />
+        </mesh>
+        
+        {/* Floor grid for better visibility */}
+        <mesh 
+          position={[0, 0.01, 0]} 
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[roomData.size.width, roomData.size.height]} />
+          <meshBasicMaterial 
+            color="#333333"
+            wireframe={true}
+            transparent={true}
+            opacity={0.3}
           />
         </mesh>
         
@@ -136,6 +158,8 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
             <meshStandardMaterial 
               map={wallTexture}
               color="#8B4513"
+              emissive="#553311"
+              emissiveIntensity={0.2}
             />
           </mesh>
         ))}

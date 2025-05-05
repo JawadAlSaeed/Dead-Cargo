@@ -229,6 +229,7 @@ const Player = () => {
   
   return (
     <group ref={playerModel}>
+      {/* Player body */}
       <mesh 
         ref={playerRef}
         position={[position.x, 0.25, position.z]}
@@ -236,14 +237,28 @@ const Player = () => {
         receiveShadow
       >
         <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="#3498db" />
-        
-        {/* Field of view indicator */}
-        <mesh position={[0, 0, -0.5]} rotation={[0, 0, 0]}>
-          <coneGeometry args={[0.4, 1, 32, 1, true]} />
-          <meshBasicMaterial color="#3498db" transparent opacity={0.3} />
-        </mesh>
+        <meshStandardMaterial color="#3498db" emissive="#3498db" emissiveIntensity={0.2} />
       </mesh>
+      
+      {/* Player head */}
+      <mesh position={[0, 0.5, 0]}>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color="#2980b9" />
+      </mesh>
+      
+      {/* Player weapon/arm */}
+      <mesh position={[0.3, 0.25, -0.2]} rotation={[0, 0, 0]}>
+        <boxGeometry args={[0.4, 0.1, 0.1]} />
+        <meshStandardMaterial color="#2c3e50" />
+      </mesh>
+      
+      {/* Field of view indicator */}
+      <group position={[0, 0.1, 0]}>
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[1.5, 32, Math.PI * 0.65, Math.PI * 0.7]} />
+          <meshBasicMaterial color="#3498db" side={THREE.DoubleSide} transparent opacity={0.1} />
+        </mesh>
+      </group>
     </group>
   );
 };

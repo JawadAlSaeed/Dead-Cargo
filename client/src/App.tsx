@@ -68,12 +68,15 @@ function App() {
                 }}
                 gl={{
                   antialias: true,
-                  powerPreference: "default"
+                  powerPreference: "default",
+                  alpha: true
                 }}
+                style={{ background: "#222222" }}
               >
-                <color attach="background" args={["#111111"]} />
-                <ambientLight intensity={0.5} />
+                <color attach="background" args={["#222222"]} />
+                <ambientLight intensity={0.7} />
                 <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
+                <hemisphereLight args={["#7a9ad1", "#5b6a7b", 0.7]} />
                 
                 <Suspense fallback={null}>
                   <CruiseShip />

@@ -98,6 +98,7 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
   
   return (
     <group ref={zombieModel}>
+      {/* Zombie body */}
       <mesh 
         ref={zombieRef}
         position={[position.x, 0.25, position.z]}
@@ -105,7 +106,41 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
         receiveShadow
       >
         <boxGeometry args={[0.5, 0.5, 0.5]} />
-        <meshStandardMaterial color="#e74c3c" />
+        <meshStandardMaterial color="#e74c3c" emissive="#e74c3c" emissiveIntensity={0.2} />
+      </mesh>
+      
+      {/* Zombie head */}
+      <mesh position={[0, 0.5, 0]}>
+        <sphereGeometry args={[0.2, 16, 16]} />
+        <meshStandardMaterial color="#c0392b" />
+      </mesh>
+      
+      {/* Zombie arms */}
+      <mesh position={[0.3, 0.25, 0]} rotation={[0, 0, Math.PI / 4]}>
+        <boxGeometry args={[0.4, 0.1, 0.1]} />
+        <meshStandardMaterial color="#a0300e" />
+      </mesh>
+      
+      <mesh position={[-0.3, 0.25, 0]} rotation={[0, 0, -Math.PI / 4]}>
+        <boxGeometry args={[0.4, 0.1, 0.1]} />
+        <meshStandardMaterial color="#a0300e" />
+      </mesh>
+      
+      {/* Health bar */}
+      <mesh 
+        position={[0, 0.8, 0]} 
+        rotation={[0, 0, 0]}
+      >
+        <planeGeometry args={[0.6, 0.1]} />
+        <meshBasicMaterial color="#333333" />
+      </mesh>
+      
+      <mesh 
+        position={[-0.3 + (0.6 * (health / 100)) / 2, 0.8, 0.01]} 
+        rotation={[0, 0, 0]}
+      >
+        <planeGeometry args={[0.6 * (health / 100), 0.1]} />
+        <meshBasicMaterial color="#e74c3c" />
       </mesh>
     </group>
   );
