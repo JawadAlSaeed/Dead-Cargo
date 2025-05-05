@@ -106,66 +106,95 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
 
   return (
     <group ref={zombieModel}>
-      {/* Zombie top-down marker (red circle) */}
+      {/* Zombie top-down marker (red circle) - larger and brighter */}
       <mesh 
         ref={zombieRef}
         position={[0, 0.05, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[1.5, 1.5, 1.5]}
       >
-        <circleGeometry args={[0.4, 32]} />
-        <meshBasicMaterial color="#ff3333" />
+        <circleGeometry args={[0.6, 32]} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
       
-      {/* Zombie direction indicator (arrow) */}
+      {/* Zombie direction indicator (arrow) - more visible */}
       <mesh 
-        position={[0, 0.06, -0.2]} 
+        position={[0, 0.07, -0.4]} 
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[1.5, 2, 1.5]}
       >
-        <coneGeometry args={[0.2, 0.5, 32]} />
+        <coneGeometry args={[0.3, 0.7, 16]} />
         <meshBasicMaterial color="#cc0000" />
       </mesh>
       
-      {/* Zombie "Z" label */}
+      {/* Zombie "Z" label - larger and brighter */}
       <mesh 
-        position={[0, 0.3, 0]}
+        position={[0, 0.1, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[2, 2, 1]}
       >
-        <planeGeometry args={[0.5, 0.5]} />
+        <boxGeometry args={[0.8, 0.8, 0.1]} />
         <meshBasicMaterial 
-          color="#ffaaaa" 
-          opacity={0.8} 
+          color="#ff5555" 
+          opacity={0.9} 
           transparent 
         />
       </mesh>
       
-      {/* Zigzag pattern around zombie (for the zombie look) */}
+      {/* Zigzag pattern around zombie - more prominent */}
       <mesh 
         position={[0, 0.04, 0]} 
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[2, 2, 1]}
       >
-        <ringGeometry args={[0.43, 0.46, 16, 1]} />
+        <ringGeometry args={[0.5, 0.55, 16, 1]} />
         <meshBasicMaterial color="#ff0000" />
       </mesh>
       
-      {/* Health bar background - rotated to be top-down */}
-      <mesh 
-        position={[0, 0.07, -0.6]} 
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[1, 0.2, 1]}
-      >
-        <planeGeometry args={[0.6, 0.3]} />
-        <meshBasicMaterial color="#333333" />
+      {/* Debug vertical indicator to make zombie more visible */}
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[0.2, 1, 0.2]} />
+        <meshBasicMaterial color="#ff0000" transparent opacity={0.7} />
       </mesh>
       
-      {/* Health bar foreground - rotated to be top-down */}
-      <mesh 
-        position={[0, 0.08, -0.6]} 
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[(health / 100), 0.15, 1]}
-      >
-        <planeGeometry args={[0.6, 0.3]} />
-        <meshBasicMaterial color="#ff0000" />
-      </mesh>
+      {/* Health bar - much larger and clearer */}
+      <group position={[0, 0.2, -1]} scale={[2, 1, 1]}>
+        {/* Background */}
+        <mesh 
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[1.5, 0.4]} />
+          <meshBasicMaterial color="#000000" />
+        </mesh>
+        
+        {/* Border */}
+        <mesh 
+          position={[0, 0.01, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[1.6, 0.5]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
+        </mesh>
+        
+        {/* Health fill */}
+        <mesh 
+          position={[((health / 100) - 1) * 0.75, 0.02, 0]} 
+          rotation={[-Math.PI / 2, 0, 0]}
+          scale={[(health / 100), 1, 1]}
+        >
+          <planeGeometry args={[1.5, 0.4]} />
+          <meshBasicMaterial color="#ff0000" />
+        </mesh>
+        
+        {/* Health text indicator */}
+        <mesh
+          position={[0, 0.03, 0]}
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          <planeGeometry args={[0.6, 0.3]} />
+          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+        </mesh>
+      </group>
     </group>
   );
 };

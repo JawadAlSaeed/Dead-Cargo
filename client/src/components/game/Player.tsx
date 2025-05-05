@@ -237,61 +237,71 @@ const Player = () => {
   
   return (
     <group ref={playerModel}>
-      {/* Player top-down view marker (bright circle) */}
+      {/* Player top-down view marker (bright circle) - much larger and brighter */}
       <mesh 
         ref={playerRef}
         position={[0, 0.05, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[1.5, 1.5, 1.5]}
       >
-        <circleGeometry args={[0.4, 32]} />
-        <meshBasicMaterial color="#00aaff" />
+        <circleGeometry args={[0.6, 32]} />
+        <meshBasicMaterial color="#00ffff" />
       </mesh>
       
-      {/* Player direction indicator (arrow) */}
+      {/* Player direction indicator (arrow) - larger and brighter */}
       <mesh 
-        position={[0, 0.06, -0.2]} 
+        position={[0, 0.07, -0.4]} 
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[1.5, 2, 1.5]}
       >
-        <coneGeometry args={[0.2, 0.5, 32]} />
-        <meshBasicMaterial color="#0088cc" />
+        <coneGeometry args={[0.3, 0.7, 16]} />
+        <meshBasicMaterial color="#00ccff" />
       </mesh>
       
-      {/* Player text label (always faces up) */}
+      {/* Player name indicator - large bright box */}
       <mesh 
-        position={[0, 0.3, 0]}
+        position={[0, 0.1, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[2, 0.5, 1]}
       >
-        <planeGeometry args={[1, 0.3]} />
+        <boxGeometry args={[1, 1, 0.1]} />
         <meshBasicMaterial 
-          color="#1166ff" 
-          opacity={0.8} 
+          color="#0055ff" 
+          opacity={0.9} 
           transparent 
         />
       </mesh>
       
-      {/* Player outline circle (for better visibility) */}
+      {/* Player outline - large glowing circle */}
       <mesh 
-        position={[0, 0.04, 0]}
+        position={[0, 0.03, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
+        scale={[2, 2, 1]}
       >
-        <ringGeometry args={[0.43, 0.45, 32]} />
+        <ringGeometry args={[0.5, 0.55, 32]} />
         <meshBasicMaterial color="#ffffff" />
       </mesh>
       
-      {/* Field of view indicator */}
+      {/* Field of view indicator - much larger and clearer */}
       <group position={[0, 0.02, 0]}>
-        <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} scale={[2, 2, 1]}>
           <ringGeometry 
-            args={[1.8, 2.0, 32, 8, 0, Math.PI * 0.7]} 
+            args={[2, 2.3, 32, 4, 0, Math.PI * 0.7]} 
           />
           <meshBasicMaterial 
-            color="#3399ff" 
+            color="#55aaff" 
             side={THREE.DoubleSide} 
             transparent 
-            opacity={0.2} 
+            opacity={0.3} 
           />
         </mesh>
       </group>
+      
+      {/* Debug box showing exact player position */}
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[0.2, 1, 0.2]} />
+        <meshBasicMaterial color="#ff00ff" transparent opacity={0.7} />
+      </mesh>
     </group>
   );
 };

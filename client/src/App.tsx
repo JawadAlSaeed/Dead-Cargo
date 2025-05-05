@@ -59,26 +59,44 @@ function App() {
             <>
               <Canvas
                 shadows
+                orthographic
                 camera={{
-                  position: [0, 15, 0],
-                  rotation: [-Math.PI / 2, 0, 0],
-                  fov: 50,
+                  position: [0, 20, 0],
+                  zoom: 40,
+                  up: [0, 0, 1],
                   near: 0.1,
                   far: 1000
                 }}
                 gl={{
                   antialias: true,
-                  powerPreference: "default",
+                  alpha: false,
+                  depth: true,
                 }}
-                style={{ background: "#111111" }}
+                style={{ 
+                  background: "#111111",
+                  width: "100%",
+                  height: "100vh"
+                }}
               >
                 <color attach="background" args={["#111111"]} />
-                <ambientLight intensity={1.0} />
-                <directionalLight position={[0, 10, 0]} intensity={1.5} castShadow />
+                <ambientLight intensity={1.5} />
+                <directionalLight 
+                  position={[0, 10, 0]} 
+                  intensity={2.0} 
+                  castShadow 
+                />
+                <axesHelper scale={5} position={[0, 0.1, 0]} />
                 
                 <Suspense fallback={null}>
                   <CruiseShip />
                 </Suspense>
+                
+                {/* Debug grid */}
+                <gridHelper 
+                  args={[100, 100, "#555555", "#333333"]}
+                  position={[0, 0.01, 0]}
+                  rotation={[Math.PI / 2, 0, 0]}
+                />
               </Canvas>
               <GameUI />
             </>
