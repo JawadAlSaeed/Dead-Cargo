@@ -23,8 +23,8 @@ const ProcGenRooms = () => {
       // Set the current room and position the player in it
       setCurrentRoom(startingRoomId);
       
-      // Position player in the center of the room (significantly offset to see better)
-      setPosition({ x: 3, y: 0.25, z: 3 });
+      // Position player in a clearly visible location
+      setPosition({ x: 0, y: 0.5, z: 0 });
       
       // Spawn initial zombies - fewer at start for easier beginning
       spawnZombies(startingRoomId, 1);

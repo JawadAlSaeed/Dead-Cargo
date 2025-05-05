@@ -59,15 +59,14 @@ function App() {
             <>
               <Canvas
                 shadows
+                orthographic
                 camera={{
-                  position: [0, 15, 0],
-                  fov: 60,
-                  rotation: [-Math.PI / 2, 0, 0],
+                  position: [0, 10, 0],
+                  zoom: 20,
+                  up: [0, 0, 1],
                   near: 0.1,
                   far: 1000,
-                  up: [0, 0, 1],
                 }}
-                dpr={[1, 2]}
                 gl={{
                   antialias: true,
                 }}
@@ -76,34 +75,38 @@ function App() {
                   height: "100vh",
                   width: "100vw",
                 }}
+                flat
+                legacy
               >
                 {/* Debug Elements */}
                 <color attach="background" args={["#222222"]} />
-                <axesHelper args={[5]} />
-                <gridHelper 
-                  args={[20, 20]} 
-                  rotation={[Math.PI/2, 0, 0]}
-                  position={[0, 0, 0]} 
-                />
-                
-                {/* Lighting */}
-                <ambientLight intensity={1.0} />
+                <ambientLight intensity={1.5} />
                 <directionalLight 
-                  position={[5, 15, 5]} 
+                  position={[0, 10, 0]} 
                   intensity={1.0} 
                   castShadow 
                 />
+                
+                {/* Debug objects */}
+                <mesh position={[0, 0, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                  <planeGeometry args={[20, 20]} />
+                  <meshBasicMaterial color="#333333" />
+                </mesh>
+                
+                <mesh position={[0, 1, 0]}>
+                  <boxGeometry args={[5, 2, 5]} />
+                  <meshStandardMaterial color="hotpink" />
+                </mesh>
+                
+                <mesh position={[5, 1, 5]}>
+                  <sphereGeometry args={[2, 32, 32]} />
+                  <meshStandardMaterial color="cyan" />
+                </mesh>
                 
                 {/* Game World */}
                 <Suspense fallback={null}>
                   <CruiseShip />
                 </Suspense>
-                
-                {/* Debug Box - to make sure rendering works */}
-                <mesh position={[0, 1, 0]}>
-                  <boxGeometry args={[2, 2, 2]} />
-                  <meshStandardMaterial color="hotpink" />
-                </mesh>
               </Canvas>
               <GameUI />
             </>

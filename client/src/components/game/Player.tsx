@@ -237,52 +237,29 @@ const Player = () => {
   
   return (
     <group ref={playerModel}>
-      {/* Player primary marker - large bright 3D object */}
+      {/* ULTRA SIMPLIFIED PLAYER - just a large colored box */}
       <mesh 
         ref={playerRef}
-        position={[0, 1, 0]}
-        scale={[1, 1, 1]}
+        position={[0, 0.5, 0]}
       >
-        <boxGeometry args={[2, 2, 2]} />
-        <meshStandardMaterial color="#00ffff" emissive="#0088ff" emissiveIntensity={0.5} />
+        <boxGeometry args={[2, 1, 2]} />
+        <meshBasicMaterial color="#00ffff" />
       </mesh>
       
-      {/* Player direction indicator (arrow) */}
+      {/* Direction arrow - clear indicator */}
       <mesh 
-        position={[0, 1, 2]}
-        rotation={[0, 0, 0]}
+        position={[0, 0.5, 1.5]}
       >
-        <coneGeometry args={[0.7, 2, 16]} />
-        <meshStandardMaterial color="#0088ff" />
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial color="#0088ff" />
       </mesh>
       
-      {/* Player platform */}
+      {/* Extra position marker */}
       <mesh 
-        position={[0, 0, 0]}
-        rotation={[0, 0, 0]}
+        position={[0, 1.5, 0]}
       >
-        <cylinderGeometry args={[3, 3, 0.2, 32]} />
-        <meshStandardMaterial color="#0044aa" />
-      </mesh>
-      
-      {/* Field of view indicator - visible cone */}
-      <mesh
-        position={[0, 0.5, 2]} 
-        rotation={[Math.PI/2, 0, 0]}
-      >
-        <coneGeometry args={[4, 8, 32, 1, true]} />
-        <meshStandardMaterial 
-          color="#4488ff" 
-          transparent 
-          opacity={0.3} 
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-
-      {/* Debug Sphere showing exact player position */}
-      <mesh position={[0, 3, 0]}>
         <sphereGeometry args={[0.5, 16, 16]} />
-        <meshStandardMaterial color="#ff00ff" emissive="#ff00ff" emissiveIntensity={0.5} />
+        <meshBasicMaterial color="#ff00ff" />
       </mesh>
     </group>
   );

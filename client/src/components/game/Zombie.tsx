@@ -106,51 +106,23 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
 
   return (
     <group ref={zombieModel}>
-      {/* Zombie primary marker - large bright 3D object */}
+      {/* ULTRA SIMPLIFIED ZOMBIE - just a large red box */}
       <mesh 
         ref={zombieRef}
-        position={[0, 1, 0]}
-        scale={[1, 1, 1]}
+        position={[0, 0.5, 0]}
       >
-        <boxGeometry args={[1.5, 2, 1.5]} />
-        <meshStandardMaterial color="#ff0000" emissive="#880000" emissiveIntensity={0.5} />
+        <boxGeometry args={[1.5, 1, 1.5]} />
+        <meshBasicMaterial color="#ff0000" />
       </mesh>
       
-      {/* Zombie "Z" text */}
+      {/* Health indicator - simple bar */}
       <mesh 
-        position={[0, 2, 0]}
-        rotation={[0, Math.PI/4, 0]}
+        position={[0, 1.5, 0]}
+        scale={[health/100, 0.2, 0.2]}
       >
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#ff5555" />
+        <meshBasicMaterial color="#ff5555" />
       </mesh>
-      
-      {/* Zombie platform */}
-      <mesh 
-        position={[0, 0, 0]}
-        rotation={[0, 0, 0]}
-      >
-        <cylinderGeometry args={[2, 2, 0.2, 32]} />
-        <meshStandardMaterial color="#550000" />
-      </mesh>
-      
-      {/* Health bar - large and clear floating above zombie */}
-      <group position={[0, 3, 0]}>
-        {/* Health background */}
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[3, 0.4, 0.1]} />
-          <meshStandardMaterial color="#222222" />
-        </mesh>
-        
-        {/* Health foreground */}
-        <mesh 
-          position={[((health/100 - 1) * 1.5), 0, 0.1]} 
-          scale={[health/100, 1, 1]}
-        >
-          <boxGeometry args={[3, 0.3, 0.1]} />
-          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
-        </mesh>
-      </group>
     </group>
   );
 };
