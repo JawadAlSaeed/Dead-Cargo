@@ -17,7 +17,7 @@ const controls = [
   { name: "leftward", keys: ["KeyA", "ArrowLeft"] },
   { name: "rightward", keys: ["KeyD", "ArrowRight"] },
   { name: "interact", keys: ["KeyE"] },
-  { name: "inventory", keys: ["KeyI", "Tab"] },
+  { name: "inventory", keys: ["Tab"] }, // Inventory only uses Tab key now
   { name: "attack", keys: ["Space"] },
   { name: "reload", keys: ["KeyR"] },
 ];
