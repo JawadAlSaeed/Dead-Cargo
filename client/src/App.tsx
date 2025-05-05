@@ -1,9 +1,9 @@
 import React from 'react';
-import TestScene from './TestScene';
+import SimpleGame from './SimpleGame';
 
-// Temporarily using TestScene for debugging rendering issues
+// Using SimpleGame as a simplified version of our game
 function App() {
-  return <TestScene />;
+  return <SimpleGame />;
 }
 
 export default App;
