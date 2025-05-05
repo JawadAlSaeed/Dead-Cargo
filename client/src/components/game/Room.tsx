@@ -117,75 +117,86 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
   return (
     <>
       <group ref={roomRef}>
-        {/* Floor */}
+        {/* Floor - large bright platform */}
         <mesh 
-          position={[0, 0, 0]} 
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, -0.1, 0]} 
           receiveShadow
         >
-          <planeGeometry args={[roomData.size.width, roomData.size.height]} />
+          <boxGeometry args={[roomData.size.width, 0.2, roomData.size.height]} />
           <meshStandardMaterial 
-            color="#334455"
-            roughness={0.8}
+            color="#335577"
+            roughness={0.5}
           />
         </mesh>
         
-        {/* Floor pattern for better visibility */}
-        <mesh 
-          position={[0, 0.01, 0]} 
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <planeGeometry args={[roomData.size.width, roomData.size.height]} />
-          <meshBasicMaterial 
-            color="#222222"
-            wireframe={true}
-            transparent={true}
-            opacity={0.5}
-          />
-        </mesh>
+        {/* Floor grid */}
+        <gridHelper 
+          args={[roomData.size.width, 10, "#ffffff", "#444444"]} 
+          position={[0, 0.01, 0]}
+          rotation={[Math.PI/2, 0, 0]}
+        />
         
-        {/* Border outline for the room */}
+        {/* Room border - bright outline */}
         <mesh
-          position={[0, 0.02, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, 0, 0]}
         >
-          <ringGeometry args={[
-            Math.min(roomData.size.width, roomData.size.height) / 2 - 0.1,
-            Math.min(roomData.size.width, roomData.size.height) / 2,
-            32
-          ]} />
-          <meshBasicMaterial color="#3399ff" transparent opacity={0.3} />
+          <boxGeometry args={[roomData.size.width, 0.1, roomData.size.height]} />
+          <meshStandardMaterial 
+            color="#3399ff" 
+            wireframe={true} 
+            emissive="#3399ff"
+            emissiveIntensity={0.5}
+          />
         </mesh>
         
-        {/* Walls - flat outlines for better top-down visibility */}
+        {/* Corner markers */}
+        <mesh position={[roomData.size.width/2, 0, roomData.size.height/2]}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial color="#ffaa00" />
+        </mesh>
+        <mesh position={[roomData.size.width/2, 0, -roomData.size.height/2]}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial color="#ffaa00" />
+        </mesh>
+        <mesh position={[-roomData.size.width/2, 0, roomData.size.height/2]}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial color="#ffaa00" />
+        </mesh>
+        <mesh position={[-roomData.size.width/2, 0, -roomData.size.height/2]}>
+          <sphereGeometry args={[0.5, 16, 16]} />
+          <meshStandardMaterial color="#ffaa00" />
+        </mesh>
+        
+        {/* Walls - 3D walls with bright colors */}
         {roomData.walls.map((wall, index) => (
           <group key={`wall-${index}`}>
-            {/* Wall base (darker color) */}
+            {/* Main wall - tall and visible */}
             <mesh
-              position={[wall.position.x, 0.1, wall.position.z]}
-              rotation={[-Math.PI / 2, 0, 0]}
+              position={[wall.position.x, 1.5, wall.position.z]}
             >
-              <planeGeometry args={[wall.size.width, wall.size.height]} />
-              <meshBasicMaterial color="#6d432a" />
+              <boxGeometry args={[wall.size.width, 3, wall.size.height]} />
+              <meshStandardMaterial 
+                color="#8B4513" 
+                emissive="#6d432a"
+                emissiveIntensity={0.3}
+              />
             </mesh>
             
-            {/* Wall outline (brighter) */}
+            {/* Wall top highlight */}
             <mesh
-              position={[wall.position.x, 0.11, wall.position.z]}
-              rotation={[-Math.PI / 2, 0, 0]}
+              position={[wall.position.x, 3.1, wall.position.z]}
             >
-              <planeGeometry args={[wall.size.width - 0.05, wall.size.height - 0.05]} />
-              <meshBasicMaterial color="#a06640" />
+              <boxGeometry args={[wall.size.width, 0.2, wall.size.height]} />
+              <meshStandardMaterial color="#ffaa66" />
             </mesh>
             
-            {/* Wall pattern */}
+            {/* Wall glow outline */}
             <mesh
-              position={[wall.position.x, 0.12, wall.position.z]}
-              rotation={[-Math.PI / 2, 0, 0]}
+              position={[wall.position.x, 1.5, wall.position.z]}
             >
-              <planeGeometry args={[wall.size.width - 0.1, wall.size.height - 0.1]} />
-              <meshBasicMaterial 
-                color="#553311" 
+              <boxGeometry args={[wall.size.width + 0.1, 3.1, wall.size.height + 0.1]} />
+              <meshStandardMaterial 
+                color="#aa6633" 
                 wireframe={true}
               />
             </mesh>

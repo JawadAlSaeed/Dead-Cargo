@@ -59,44 +59,51 @@ function App() {
             <>
               <Canvas
                 shadows
-                orthographic
                 camera={{
-                  position: [0, 20, 0],
-                  zoom: 40,
-                  up: [0, 0, 1],
+                  position: [0, 15, 0],
+                  fov: 60,
+                  rotation: [-Math.PI / 2, 0, 0],
                   near: 0.1,
-                  far: 1000
+                  far: 1000,
+                  up: [0, 0, 1],
                 }}
+                dpr={[1, 2]}
                 gl={{
                   antialias: true,
-                  alpha: false,
-                  depth: true,
                 }}
                 style={{ 
-                  background: "#111111",
-                  width: "100%",
-                  height: "100vh"
+                  background: "#222222",
+                  height: "100vh",
+                  width: "100vw",
                 }}
               >
-                <color attach="background" args={["#111111"]} />
-                <ambientLight intensity={1.5} />
+                {/* Debug Elements */}
+                <color attach="background" args={["#222222"]} />
+                <axesHelper args={[5]} />
+                <gridHelper 
+                  args={[20, 20]} 
+                  rotation={[Math.PI/2, 0, 0]}
+                  position={[0, 0, 0]} 
+                />
+                
+                {/* Lighting */}
+                <ambientLight intensity={1.0} />
                 <directionalLight 
-                  position={[0, 10, 0]} 
-                  intensity={2.0} 
+                  position={[5, 15, 5]} 
+                  intensity={1.0} 
                   castShadow 
                 />
-                <axesHelper scale={5} position={[0, 0.1, 0]} />
                 
+                {/* Game World */}
                 <Suspense fallback={null}>
                   <CruiseShip />
                 </Suspense>
                 
-                {/* Debug grid */}
-                <gridHelper 
-                  args={[100, 100, "#555555", "#333333"]}
-                  position={[0, 0.01, 0]}
-                  rotation={[Math.PI / 2, 0, 0]}
-                />
+                {/* Debug Box - to make sure rendering works */}
+                <mesh position={[0, 1, 0]}>
+                  <boxGeometry args={[2, 2, 2]} />
+                  <meshStandardMaterial color="hotpink" />
+                </mesh>
               </Canvas>
               <GameUI />
             </>

@@ -106,93 +106,49 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
 
   return (
     <group ref={zombieModel}>
-      {/* Zombie top-down marker (red circle) - larger and brighter */}
+      {/* Zombie primary marker - large bright 3D object */}
       <mesh 
         ref={zombieRef}
-        position={[0, 0.05, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[1.5, 1.5, 1.5]}
+        position={[0, 1, 0]}
+        scale={[1, 1, 1]}
       >
-        <circleGeometry args={[0.6, 32]} />
-        <meshBasicMaterial color="#ff0000" />
+        <boxGeometry args={[1.5, 2, 1.5]} />
+        <meshStandardMaterial color="#ff0000" emissive="#880000" emissiveIntensity={0.5} />
       </mesh>
       
-      {/* Zombie direction indicator (arrow) - more visible */}
+      {/* Zombie "Z" text */}
       <mesh 
-        position={[0, 0.07, -0.4]} 
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[1.5, 2, 1.5]}
+        position={[0, 2, 0]}
+        rotation={[0, Math.PI/4, 0]}
       >
-        <coneGeometry args={[0.3, 0.7, 16]} />
-        <meshBasicMaterial color="#cc0000" />
+        <boxGeometry args={[1, 1, 1]} />
+        <meshStandardMaterial color="#ff5555" />
       </mesh>
       
-      {/* Zombie "Z" label - larger and brighter */}
+      {/* Zombie platform */}
       <mesh 
-        position={[0, 0.1, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[2, 2, 1]}
+        position={[0, 0, 0]}
+        rotation={[0, 0, 0]}
       >
-        <boxGeometry args={[0.8, 0.8, 0.1]} />
-        <meshBasicMaterial 
-          color="#ff5555" 
-          opacity={0.9} 
-          transparent 
-        />
+        <cylinderGeometry args={[2, 2, 0.2, 32]} />
+        <meshStandardMaterial color="#550000" />
       </mesh>
       
-      {/* Zigzag pattern around zombie - more prominent */}
-      <mesh 
-        position={[0, 0.04, 0]} 
-        rotation={[-Math.PI / 2, 0, 0]}
-        scale={[2, 2, 1]}
-      >
-        <ringGeometry args={[0.5, 0.55, 16, 1]} />
-        <meshBasicMaterial color="#ff0000" />
-      </mesh>
-      
-      {/* Debug vertical indicator to make zombie more visible */}
-      <mesh position={[0, 0.5, 0]}>
-        <boxGeometry args={[0.2, 1, 0.2]} />
-        <meshBasicMaterial color="#ff0000" transparent opacity={0.7} />
-      </mesh>
-      
-      {/* Health bar - much larger and clearer */}
-      <group position={[0, 0.2, -1]} scale={[2, 1, 1]}>
-        {/* Background */}
-        <mesh 
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <planeGeometry args={[1.5, 0.4]} />
-          <meshBasicMaterial color="#000000" />
+      {/* Health bar - large and clear floating above zombie */}
+      <group position={[0, 3, 0]}>
+        {/* Health background */}
+        <mesh position={[0, 0, 0]}>
+          <boxGeometry args={[3, 0.4, 0.1]} />
+          <meshStandardMaterial color="#222222" />
         </mesh>
         
-        {/* Border */}
+        {/* Health foreground */}
         <mesh 
-          position={[0, 0.01, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[((health/100 - 1) * 1.5), 0, 0.1]} 
+          scale={[health/100, 1, 1]}
         >
-          <planeGeometry args={[1.6, 0.5]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
-        </mesh>
-        
-        {/* Health fill */}
-        <mesh 
-          position={[((health / 100) - 1) * 0.75, 0.02, 0]} 
-          rotation={[-Math.PI / 2, 0, 0]}
-          scale={[(health / 100), 1, 1]}
-        >
-          <planeGeometry args={[1.5, 0.4]} />
-          <meshBasicMaterial color="#ff0000" />
-        </mesh>
-        
-        {/* Health text indicator */}
-        <mesh
-          position={[0, 0.03, 0]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <planeGeometry args={[0.6, 0.3]} />
-          <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+          <boxGeometry args={[3, 0.3, 0.1]} />
+          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.5} />
         </mesh>
       </group>
     </group>
