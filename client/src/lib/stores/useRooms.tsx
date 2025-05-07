@@ -39,16 +39,22 @@ export interface Room {
   visited: boolean;
 }
 
+// Room types enum
+export type RoomType = "hallway" | "standard" | "captainCabin" | "bedroom" | "kitchen" | "cargo" | "medical" | "engine";
+
 // Interface for the rooms state
 interface RoomsState {
   rooms: Record<string, Room>;
   currentRoom: string;
   captainCabin: { position: { x: number; z: number }; size: { width: number; height: number } } | null;
+  hallwayId: string | null;
   
   // Room management actions
-  generateRoom: (type: string, size: { width: number; height: number }) => string;
+  generateRoom: (type: RoomType, size: { width: number; height: number }) => string;
+  generateHallway: (length: number, width: number) => string;
   generateShip: () => void;
-  connectRooms: (roomId1: string, roomId2: string) => void;
+  connectRooms: (roomId1: string, roomId2: string, position?: { x: number; z: number }) => void;
+  connectRoomToHallway: (roomId: string, position: number) => void;
   setCurrentRoom: (roomId: string) => void;
   getCurrentRoomData: () => Room | null;
   markRoomVisited: (roomId: string) => void;
@@ -65,6 +71,7 @@ const initialState = {
   rooms: {},
   currentRoom: "",
   captainCabin: null,
+  hallwayId: null,
   walls: null,
   doors: null,
   roomObjects: null
@@ -185,7 +192,217 @@ export const useRooms = create<RoomsState>()(
       // is handled by the ProcGenRooms component
     },
     
-    connectRooms: (roomId1, roomId2) => {
+// This code has been replaced by the enhanced connectRooms method below
+    
+    setCurrentRoom: (roomId) => {
+      const { rooms } = get();
+      
+      if (!rooms[roomId]) {
+        console.error("Cannot set current room to nonexistent room:", roomId);
+        return;
+      }
+      
+      // Update current room and its properties for easy access
+      set((state) => ({
+        currentRoom: roomId,
+        walls: rooms[roomId].walls,
+        doors: rooms[roomId].doors,
+        roomObjects: rooms[roomId].objects
+      }));
+      
+      // Mark the room as visited
+      get().markRoomVisited(roomId);
+    },
+    
+    getCurrentRoomData: () => {
+      const { currentRoom, rooms } = get();
+      
+      if (!currentRoom || !rooms[currentRoom]) {
+        return null;
+      }
+      
+      return rooms[currentRoom];
+    },
+    
+    markRoomVisited: (roomId) => {
+      const { rooms } = get();
+      
+      if (!rooms[roomId]) {
+        return;
+      }
+      
+      set((state) => ({
+        rooms: {
+          ...state.rooms,
+          [roomId]: {
+            ...state.rooms[roomId],
+            visited: true
+          }
+        }
+      }));
+    },
+    
+    generateHallway: (length, width) => {
+      const hallwayId = `hallway-${Date.now()}`;
+      
+      // Create a long hallway
+      const hallwayWidth = width;
+      const hallwayLength = length;
+      
+      // Generate walls along the length of the hallway
+      const walls: Wall[] = [
+        // Top wall
+        { position: { x: 0, z: -hallwayWidth/2 + 0.5 }, size: { width: hallwayLength, height: 1 } },
+        // Bottom wall
+        { position: { x: 0, z: hallwayWidth/2 - 0.5 }, size: { width: hallwayLength, height: 1 } }
+      ];
+      
+      // Generate doors (initially none, will be added when connecting rooms)
+      const doors: Door[] = [];
+      
+      // Generate some decor objects in the hallway
+      const objects: RoomObject[] = [];
+      
+      // Add wall lights every 5 units
+      for (let x = -hallwayLength/2 + 5; x < hallwayLength/2; x += 5) {
+        objects.push({
+          type: "light",
+          position: { x, z: -hallwayWidth/2 + 0.7 },
+          size: { width: 0.5, height: 0.2 },
+          collidable: false,
+          color: "#FFFF99",
+          interactable: false
+        });
+        
+        objects.push({
+          type: "light",
+          position: { x, z: hallwayWidth/2 - 0.7 },
+          size: { width: 0.5, height: 0.2 },
+          collidable: false,
+          color: "#FFFF99",
+          interactable: false
+        });
+      }
+      
+      // Add occasional debris or objects
+      for (let i = 0; i < Math.floor(length / 10); i++) {
+        const x = (Math.random() - 0.5) * (hallwayLength - 4);
+        const z = (Math.random() - 0.5) * (hallwayWidth - 2);
+        
+        objects.push({
+          type: Math.random() > 0.5 ? "debris" : "bloodstain",
+          position: { x, z },
+          size: { width: 0.5 + Math.random(), height: 0.5 + Math.random() },
+          collidable: false,
+          color: Math.random() > 0.5 ? "#A52A2A" : "#8B0000",
+          interactable: false
+        });
+      }
+      
+      // Create the hallway room
+      const hallway: Room = {
+        id: hallwayId,
+        type: "hallway",
+        size: { width: hallwayLength, height: hallwayWidth },
+        walls,
+        doors,
+        objects,
+        connectedRooms: [],
+        visited: false
+      };
+      
+      // Add the hallway to the state
+      set((state) => ({
+        rooms: {
+          ...state.rooms,
+          [hallwayId]: hallway
+        },
+        hallwayId
+      }));
+      
+      return hallwayId;
+    },
+    
+    connectRoomToHallway: (roomId, position) => {
+      const { rooms, hallwayId } = get();
+      
+      if (!hallwayId || !rooms[hallwayId] || !rooms[roomId]) {
+        console.error("Cannot connect room to hallway: missing hallway or room");
+        return;
+      }
+      
+      const hallway = rooms[hallwayId];
+      const room = rooms[roomId];
+      
+      // Check if already connected
+      if (room.connectedRooms.includes(hallwayId)) {
+        return;
+      }
+      
+      // Determine door positions
+      const doorWidth = 2;
+      const doorHeight = 1;
+      const hallwayLength = hallway.size.width;
+      const hallwayWidth = hallway.size.height;
+      
+      // Calculate the position along the hallway (clamped to hallway length)
+      const hallwayX = Math.max(-hallwayLength/2 + 5, Math.min(hallwayLength/2 - 5, position));
+      
+      // Randomly choose top or bottom wall of hallway for the door
+      const isTopWall = Math.random() > 0.5;
+      const hallwayZ = isTopWall ? -hallwayWidth/2 + 0.5 : hallwayWidth/2 - 0.5;
+      
+      // Hallway door position and target
+      const hallwayDoorPosition = { x: hallwayX, z: hallwayZ };
+      const hallwayDoorTarget = { 
+        x: 0, 
+        z: isTopWall ? -room.size.height/2 + 3 : room.size.height/2 - 3 
+      };
+      
+      // Room door position (centered on the corresponding wall)
+      const roomDoorPosition = { 
+        x: 0, 
+        z: isTopWall ? room.size.height/2 - 0.5 : -room.size.height/2 + 0.5 
+      };
+      const roomDoorTarget = { x: hallwayX, z: 0 };
+      
+      // Create door objects
+      const hallwayDoor: Door = {
+        position: hallwayDoorPosition,
+        size: { width: doorWidth, height: doorHeight },
+        targetRoomId: roomId,
+        targetPosition: hallwayDoorTarget,
+        locked: Math.random() < 0.1 // 10% chance of locked door
+      };
+      
+      const roomDoor: Door = {
+        position: roomDoorPosition,
+        size: { width: doorWidth, height: doorHeight },
+        targetRoomId: hallwayId,
+        targetPosition: roomDoorTarget,
+        locked: hallwayDoor.locked // Match locked state
+      };
+      
+      // Update both rooms with doors and connections
+      set((state) => ({
+        rooms: {
+          ...state.rooms,
+          [hallwayId]: {
+            ...state.rooms[hallwayId],
+            doors: [...state.rooms[hallwayId].doors, hallwayDoor],
+            connectedRooms: [...state.rooms[hallwayId].connectedRooms, roomId]
+          },
+          [roomId]: {
+            ...state.rooms[roomId],
+            doors: [...state.rooms[roomId].doors, roomDoor],
+            connectedRooms: [...state.rooms[roomId].connectedRooms, hallwayId]
+          }
+        }
+      }));
+    },
+    
+    // Default room connection method updated to support positioning
+    connectRooms: (roomId1, roomId2, position) => {
       const { rooms } = get();
       
       // Ensure both rooms exist
@@ -214,14 +431,14 @@ export const useRooms = create<RoomsState>()(
       switch (wallIndex) {
         case 0: // Top wall
           door1Position = { 
-            x: (Math.random() - 0.5) * (room1.size.width - doorWidth - 2),
+            x: position?.x || (Math.random() - 0.5) * (room1.size.width - doorWidth - 2),
             z: -room1.size.height/2 + 0.5 
           };
           door1TargetPosition = { x: door1Position.x, z: -3 };
           break;
         case 1: // Bottom wall
           door1Position = { 
-            x: (Math.random() - 0.5) * (room1.size.width - doorWidth - 2),
+            x: position?.x || (Math.random() - 0.5) * (room1.size.width - doorWidth - 2),
             z: room1.size.height/2 - 0.5 
           };
           door1TargetPosition = { x: door1Position.x, z: 3 };
@@ -229,14 +446,14 @@ export const useRooms = create<RoomsState>()(
         case 2: // Left wall
           door1Position = { 
             x: -room1.size.width/2 + 0.5,
-            z: (Math.random() - 0.5) * (room1.size.height - doorHeight - 2)
+            z: position?.z || (Math.random() - 0.5) * (room1.size.height - doorHeight - 2)
           };
           door1TargetPosition = { x: -3, z: door1Position.z };
           break;
         case 3: // Right wall
           door1Position = { 
             x: room1.size.width/2 - 0.5,
-            z: (Math.random() - 0.5) * (room1.size.height - doorHeight - 2)
+            z: position?.z || (Math.random() - 0.5) * (room1.size.height - doorHeight - 2)
           };
           door1TargetPosition = { x: 3, z: door1Position.z };
           break;
@@ -285,54 +502,6 @@ export const useRooms = create<RoomsState>()(
             ...state.rooms[roomId2],
             doors: [...state.rooms[roomId2].doors, door2],
             connectedRooms: [...state.rooms[roomId2].connectedRooms, roomId1]
-          }
-        }
-      }));
-    },
-    
-    setCurrentRoom: (roomId) => {
-      const { rooms } = get();
-      
-      if (!rooms[roomId]) {
-        console.error("Cannot set current room to nonexistent room:", roomId);
-        return;
-      }
-      
-      // Update current room and its properties for easy access
-      set((state) => ({
-        currentRoom: roomId,
-        walls: rooms[roomId].walls,
-        doors: rooms[roomId].doors,
-        roomObjects: rooms[roomId].objects
-      }));
-      
-      // Mark the room as visited
-      get().markRoomVisited(roomId);
-    },
-    
-    getCurrentRoomData: () => {
-      const { currentRoom, rooms } = get();
-      
-      if (!currentRoom || !rooms[currentRoom]) {
-        return null;
-      }
-      
-      return rooms[currentRoom];
-    },
-    
-    markRoomVisited: (roomId) => {
-      const { rooms } = get();
-      
-      if (!rooms[roomId]) {
-        return;
-      }
-      
-      set((state) => ({
-        rooms: {
-          ...state.rooms,
-          [roomId]: {
-            ...state.rooms[roomId],
-            visited: true
           }
         }
       }));
