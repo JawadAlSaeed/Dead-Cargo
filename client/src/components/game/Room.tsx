@@ -100,6 +100,64 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
     };
   }, [isActive, roomData, position, interactiveObjectNearby, getKeys]);
   
+  // Global key handler for E key
+  useEffect(() => {
+    // Create door interaction handler
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'KeyE' && isActive && roomData) {
+        console.log(`E key pressed in room ${roomId}`);
+        
+        // If player is near a door, use it
+        if (nearbyDoor) {
+          e.preventDefault(); // Prevent default E key behavior
+          console.log(`Using door to room ${nearbyDoor.targetRoomId}`);
+          
+          try {
+            // Get the target door data
+            const door = roomData.doors[nearbyDoor.doorIndex];
+            
+            // Don't allow interaction with locked doors
+            if (door.locked) {
+              console.log("This door is locked!");
+              return;
+            }
+            
+            // Set the current room to the target room
+            const roomsState = useRooms.getState();
+            console.log(`DOOR: Transitioning from ${roomId} to ${nearbyDoor.targetRoomId}`);
+            roomsState.setCurrentRoom(nearbyDoor.targetRoomId);
+            
+            // Update player position to the target position in the new room
+            const playerState = usePlayer.getState();
+            playerState.setPosition({
+              x: nearbyDoor.targetPosition.x,
+              y: 0,
+              z: nearbyDoor.targetPosition.z
+            });
+            
+            console.log(`ROOM TRANSITION: Moved to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
+          } catch (error) {
+            console.error("Error during door transition:", error);
+          }
+        } 
+        // If near interactive object, search it
+        else if (interactiveObjectNearby && !searchingObject) {
+          console.log(`Searching ${interactiveObjectNearby.type}`);
+          setSearchingObject(interactiveObjectNearby.type);
+        }
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      console.log(`Room ${roomId} cleanup - removed E key listener`);
+    };
+  }, [isActive, roomId, roomData, nearbyDoor, interactiveObjectNearby, searchingObject]);
+  
   // Check if player is near doors for room transitions
   useEffect(() => {
     if (!isActive || !roomData) return;
@@ -109,19 +167,11 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
       let closestDoor = null;
       let closestDistance = 1.5; // Max door interaction distance
       
-      // Debug: log all doors in this room
-      console.log(`Room ${roomId} has ${roomData.doors.length} doors:`, roomData.doors);
-      
       roomData.doors.forEach((door, doorIndex) => {
         const distance = getDistance(
           position.x, position.z,
           door.position.x, door.position.z
         );
-        
-        // Debug: log distance to each door
-        console.log(`Door ${doorIndex} distance: ${distance.toFixed(2)}, ` +
-                    `at (${door.position.x.toFixed(1)}, ${door.position.z.toFixed(1)}), ` +
-                    `player at (${position.x.toFixed(1)}, ${position.z.toFixed(1)})`);
         
         if (distance < closestDistance) {
           closestDistance = distance;
@@ -130,101 +180,58 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
             targetRoomId: door.targetRoomId,
             targetPosition: door.targetPosition
           };
-          // Debug: log when near a door
-          console.log(`NEAR DOOR! Door ${doorIndex} leads to room ${door.targetRoomId}`);
+          console.log(`Player near door ${doorIndex} to room ${door.targetRoomId}, distance: ${distance.toFixed(2)}`);
         }
       });
       
       setNearbyDoor(closestDoor);
-      
-      // Debug: log when player is near or not near a door
-      if (closestDoor) {
-        console.log("Player is NEAR a door to room:", closestDoor.targetRoomId);
-      }
     };
     
     // Check for nearby doors periodically
     const interval = setInterval(checkDoors, 200);
     
-    // Add a direct key event listener for the E key
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if E key was pressed (KeyE)
-      if (e.code === 'KeyE' && nearbyDoor && isActive) {
-        console.log(`KEY PRESS DETECTED: E key pressed near door to ${nearbyDoor.targetRoomId}`);
-        
-        // Get the target door data
-        const door = roomData.doors[nearbyDoor.doorIndex];
-        
-        // Don't allow interaction with locked doors
-        if (door.locked) {
-          console.log("This door is locked!");
-          return;
-        }
-        
-        // Set the current room to the target room
-        const roomsState = useRooms.getState();
-        roomsState.setCurrentRoom(nearbyDoor.targetRoomId);
-        
-        // Update player position to the target position in the new room
-        const playerState = usePlayer.getState();
-        playerState.setPosition({
-          x: nearbyDoor.targetPosition.x,
-          y: 0,
-          z: nearbyDoor.targetPosition.z
-        });
-        
-        console.log(`ROOM TRANSITION: Moved to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
-      }
-    };
-    
-    // Add the keyboard event listener
-    window.addEventListener('keydown', handleKeyDown);
-    
-    // Check for door interaction via controls too (as a backup)
+    // Backup using the keyboard controls system
     const checkDoorInteract = () => {
       const { interact } = getKeys();
       
-      // Debug: log interaction attempt
-      if (interact) {
-        console.log("Interact key detected from controls. Near door:", !!nearbyDoor);
-      }
-      
       if (interact && nearbyDoor) {
-        console.log(`Using door to room ${nearbyDoor.targetRoomId}`);
+        console.log(`Control system: Using door to room ${nearbyDoor.targetRoomId}`);
         
-        // Get the target door data
-        const door = roomData.doors[nearbyDoor.doorIndex];
-        
-        // Don't allow interaction with locked doors
-        if (door.locked) {
-          console.log("This door is locked!");
-          return;
+        try {
+          // Get the target door data
+          const door = roomData.doors[nearbyDoor.doorIndex];
+          
+          // Don't allow interaction with locked doors
+          if (door.locked) {
+            console.log("This door is locked!");
+            return;
+          }
+          
+          // Set the current room to the target room
+          const roomsState = useRooms.getState();
+          roomsState.setCurrentRoom(nearbyDoor.targetRoomId);
+          
+          // Update player position to the target position in the new room
+          const playerState = usePlayer.getState();
+          playerState.setPosition({
+            x: nearbyDoor.targetPosition.x,
+            y: 0,
+            z: nearbyDoor.targetPosition.z
+          });
+          
+          console.log(`CONTROL TRANSITION: Moved to room ${nearbyDoor.targetRoomId}`);
+        } catch (error) {
+          console.error("Error during door transition (control system):", error);
         }
-        
-        // Set the current room to the target room
-        const roomsState = useRooms.getState();
-        roomsState.setCurrentRoom(nearbyDoor.targetRoomId);
-        
-        // Update player position to the target position in the new room
-        const playerState = usePlayer.getState();
-        playerState.setPosition({
-          x: nearbyDoor.targetPosition.x,
-          y: 0,
-          z: nearbyDoor.targetPosition.z
-        });
-        
-        console.log(`ROOM TRANSITION: Moved to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
       }
     };
     
-    // Check for door interaction via controls
+    // Check for door interaction via controls as backup
     const doorInteractInterval = setInterval(checkDoorInteract, 100);
     
     return () => {
       clearInterval(interval);
       clearInterval(doorInteractInterval);
-      window.removeEventListener('keydown', handleKeyDown);
-      console.log(`Room ${roomId} cleanup - removed event listeners`);
     };
   }, [isActive, roomData, position, nearbyDoor, getKeys]);
   
