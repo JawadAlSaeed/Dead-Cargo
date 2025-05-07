@@ -85,8 +85,7 @@ export default function FullGame() {
                   <CruiseShipNew />
                 </Suspense>
                 
-                {/* Debug controls - remove in production */}
-                <OrbitControls />
+                {/* No OrbitControls to avoid interference with right-click aiming */}
               </Canvas>
               
               <GameUI />
@@ -104,12 +103,12 @@ export default function FullGame() {
                 fontSize: '12px',
                 maxWidth: '250px'
               }}>
-                <h3 style={{ margin: '0 0 5px 0' }}>DEBUG MODE</h3>
+                <h3 style={{ margin: '0 0 5px 0' }}>GAME CONTROLS</h3>
                 <p>- Use WASD to move</p>
-                <p>- Press E to interact</p>
-                <p>- Press Space to attack</p>
+                <p>- Press E to interact with objects</p>
+                <p>- Right-click to aim</p>
+                <p>- Left-click while aiming to shoot</p>
                 <p>- Press Tab for inventory</p>
-                <p>- Mouse drag to move camera</p>
               </div>
             </>
           )}
