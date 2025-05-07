@@ -109,11 +109,19 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
       let closestDoor = null;
       let closestDistance = 1.5; // Max door interaction distance
       
+      // Debug: log all doors in this room
+      console.log(`Room ${roomId} has ${roomData.doors.length} doors:`, roomData.doors);
+      
       roomData.doors.forEach((door, doorIndex) => {
         const distance = getDistance(
           position.x, position.z,
           door.position.x, door.position.z
         );
+        
+        // Debug: log distance to each door
+        console.log(`Door ${doorIndex} distance: ${distance.toFixed(2)}, ` +
+                    `at (${door.position.x.toFixed(1)}, ${door.position.z.toFixed(1)}), ` +
+                    `player at (${position.x.toFixed(1)}, ${position.z.toFixed(1)})`);
         
         if (distance < closestDistance) {
           closestDistance = distance;
@@ -122,10 +130,17 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
             targetRoomId: door.targetRoomId,
             targetPosition: door.targetPosition
           };
+          // Debug: log when near a door
+          console.log(`NEAR DOOR! Door ${doorIndex} leads to room ${door.targetRoomId}`);
         }
       });
       
       setNearbyDoor(closestDoor);
+      
+      // Debug: log when player is near or not near a door
+      if (closestDoor) {
+        console.log("Player is NEAR a door to room:", closestDoor.targetRoomId);
+      }
     };
     
     // Check for nearby doors periodically
@@ -134,6 +149,9 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
     // Check for door interaction key press
     const checkDoorInteract = () => {
       const { interact } = getKeys();
+      
+      // Debug: log interaction attempt
+      console.log("Checking door interaction. Key pressed:", interact, "Near door:", !!nearbyDoor);
       
       if (interact && nearbyDoor) {
         console.log(`Using door to room ${nearbyDoor.targetRoomId}`);
@@ -159,7 +177,7 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
           z: nearbyDoor.targetPosition.z
         });
         
-        console.log(`Transitioned to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
+        console.log(`ROOM TRANSITION: Moved to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
       }
     };
     
@@ -476,10 +494,10 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
       
       {/* Door interaction prompt */}
       {nearbyDoor && !searchingObject && (
-        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 rounded">
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 rounded font-bold">
           {roomData.doors[nearbyDoor.doorIndex].locked 
             ? "This door is locked" 
-            : "Press E to enter door"}
+            : "Press E to use door"}
         </div>
       )}
       
