@@ -29,6 +29,13 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
   // State for searchable object UI
   const [searchingObject, setSearchingObject] = useState<string | null>(null);
   
+  // State for nearby door
+  const [nearbyDoor, setNearbyDoor] = useState<{
+    doorIndex: number;
+    targetRoomId: string;
+    targetPosition: { x: number; z: number };
+  } | null>(null);
+  
   // Load textures
   const floorTexture = useTexture("/textures/wood.jpg");
   floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
@@ -92,6 +99,78 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
       clearInterval(interactInterval);
     };
   }, [isActive, roomData, position, interactiveObjectNearby, getKeys]);
+  
+  // Check if player is near doors for room transitions
+  useEffect(() => {
+    if (!isActive || !roomData) return;
+    
+    const checkDoors = () => {
+      // Find the closest door within range
+      let closestDoor = null;
+      let closestDistance = 1.5; // Max door interaction distance
+      
+      roomData.doors.forEach((door, doorIndex) => {
+        const distance = getDistance(
+          position.x, position.z,
+          door.position.x, door.position.z
+        );
+        
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestDoor = {
+            doorIndex,
+            targetRoomId: door.targetRoomId,
+            targetPosition: door.targetPosition
+          };
+        }
+      });
+      
+      setNearbyDoor(closestDoor);
+    };
+    
+    // Check for nearby doors periodically
+    const interval = setInterval(checkDoors, 200);
+    
+    // Check for door interaction key press
+    const checkDoorInteract = () => {
+      const { interact } = getKeys();
+      
+      if (interact && nearbyDoor) {
+        console.log(`Using door to room ${nearbyDoor.targetRoomId}`);
+        
+        // Get the target door data
+        const door = roomData.doors[nearbyDoor.doorIndex];
+        
+        // Don't allow interaction with locked doors
+        if (door.locked) {
+          console.log("This door is locked!");
+          return;
+        }
+        
+        // Set the current room to the target room
+        const { setCurrentRoom, setPosition } = useRooms.getState();
+        setCurrentRoom(nearbyDoor.targetRoomId);
+        
+        // Update player position to the target position in the new room
+        const playerState = usePlayer.getState();
+        playerState.setPosition({
+          x: nearbyDoor.targetPosition.x,
+          y: 0,
+          z: nearbyDoor.targetPosition.z
+        });
+        
+        console.log(`Transitioned to room ${nearbyDoor.targetRoomId} at position`, nearbyDoor.targetPosition);
+      }
+    };
+    
+    // Check for door interaction key press
+    const doorInteractInterval = setInterval(checkDoorInteract, 100);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(doorInteractInterval);
+    };
+  }, [isActive, roomData, position, nearbyDoor, getKeys]);
   
   // Set up escape key listener to close search UI
   useEffect(() => {
@@ -389,9 +468,18 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
       </group>
       
       {/* Interaction prompt if near interactive object */}
-      {interactiveObjectNearby && !searchingObject && (
+      {interactiveObjectNearby && !searchingObject && !nearbyDoor && (
         <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 rounded">
           Press E to search {interactiveObjectNearby.type}
+        </div>
+      )}
+      
+      {/* Door interaction prompt */}
+      {nearbyDoor && !searchingObject && (
+        <div className="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-900 bg-opacity-80 text-white px-4 py-2 rounded">
+          {roomData.doors[nearbyDoor.doorIndex].locked 
+            ? "This door is locked" 
+            : "Press E to enter door"}
         </div>
       )}
       
