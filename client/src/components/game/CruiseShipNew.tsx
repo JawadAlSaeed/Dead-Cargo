@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import Player from './Player';
+import PlayerDirect from './PlayerDirect';
 import Zombie from './Zombie';
 import { usePlayer } from '../../lib/stores/usePlayer';
 import { useRooms } from '../../lib/stores/useRooms';
@@ -120,7 +120,7 @@ const CruiseShipNew: React.FC = () => {
       ))}
       
       {/* Player */}
-      <Player />
+      <PlayerDirect />
       
       {/* Zombies - only render zombies in current room */}
       {zombies

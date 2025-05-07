@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useKeyboardControls } from "@react-three/drei";
 import * as THREE from "three";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useZombies } from "../../lib/stores/useZombies";
@@ -9,7 +8,7 @@ import { checkCollision, getDistance } from "../../lib/utils/collision";
 import { useRooms } from "../../lib/stores/useRooms";
 import { useGame } from "../../lib/stores/useGame";
 
-const Player = () => {
+const PlayerDirect = () => {
   const playerRef = useRef<THREE.Mesh>(null);
   const playerModel = useRef<THREE.Group>(null);
   const { position, health, damage, heal, move, setPosition, setRotation, rotation } = usePlayer();
@@ -19,13 +18,101 @@ const Player = () => {
   const { end } = useGame();
   const { camera, gl } = useThree();
   
-  // Get keyboard controls
-  const [, getKeys] = useKeyboardControls();
-
+  // Direct keyboard controls
+  const [keys, setKeys] = useState({
+    forward: false,
+    backward: false,
+    leftward: false,
+    rightward: false,
+    interact: false,
+    inventory: false,
+    attack: false,
+    reload: false
+  });
+  
   // Mouse position for aiming and shooting
   const [mousePos, setMousePos] = useState({ x: 0, z: 0 });
   const [isAiming, setIsAiming] = useState(false);
   const [isShooting, setIsShooting] = useState(false);
+  
+  // Setup keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      switch (event.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          setKeys(prev => ({ ...prev, forward: true }));
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          setKeys(prev => ({ ...prev, backward: true }));
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          setKeys(prev => ({ ...prev, leftward: true }));
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          setKeys(prev => ({ ...prev, rightward: true }));
+          break;
+        case 'KeyE':
+          setKeys(prev => ({ ...prev, interact: true }));
+          break;
+        case 'Tab':
+          event.preventDefault(); // Prevent tab from changing focus
+          setKeys(prev => ({ ...prev, inventory: true }));
+          break;
+        case 'Space':
+          setKeys(prev => ({ ...prev, attack: true }));
+          break;
+        case 'KeyR':
+          setKeys(prev => ({ ...prev, reload: true }));
+          break;
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      switch (event.code) {
+        case 'KeyW':
+        case 'ArrowUp':
+          setKeys(prev => ({ ...prev, forward: false }));
+          break;
+        case 'KeyS':
+        case 'ArrowDown':
+          setKeys(prev => ({ ...prev, backward: false }));
+          break;
+        case 'KeyA':
+        case 'ArrowLeft':
+          setKeys(prev => ({ ...prev, leftward: false }));
+          break;
+        case 'KeyD':
+        case 'ArrowRight':
+          setKeys(prev => ({ ...prev, rightward: false }));
+          break;
+        case 'KeyE':
+          setKeys(prev => ({ ...prev, interact: false }));
+          break;
+        case 'Tab':
+          setKeys(prev => ({ ...prev, inventory: false }));
+          break;
+        case 'Space':
+          setKeys(prev => ({ ...prev, attack: false }));
+          break;
+        case 'KeyR':
+          setKeys(prev => ({ ...prev, reload: false }));
+          break;
+      }
+    };
+
+    // Add event listeners for keyboard
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
   
   // Setup mouse controls for aiming and shooting
   useEffect(() => {
@@ -90,18 +177,14 @@ const Player = () => {
   
   // Initialize player
   useEffect(() => {
-    console.log("Player initialized with mouse aiming");
-    // Lock pointer for FPS-style mouse control
-    const canvas = gl.domElement;
-    canvas.onclick = () => {
-      canvas.requestPointerLock();
-    };
-  }, [gl]);
+    console.log("Player initialized with direct keyboard/mouse controls");
+  }, []);
   
   // Update actual model position whenever player position changes
   useEffect(() => {
     if (playerModel.current) {
       playerModel.current.position.x = position.x;
+      playerModel.current.position.y = position.y;
       playerModel.current.position.z = position.z;
     }
   }, [position]);
@@ -109,25 +192,15 @@ const Player = () => {
   // Player game logic
   useFrame((state, delta) => {
     if (playerRef.current && playerModel.current) {
-      // Get key states directly
-      const keys = getKeys();
+      // Log the keyboard state
       console.log("Key states:", JSON.stringify(keys));
       
       // Movement speed
-      const speed = 10 * delta; // Increased speed for better responsiveness
+      const speed = 10 * delta; // Fast movement for good responsiveness
       let moveX = 0;
       let moveZ = 0;
       
-      // Log to debug keyboard input
-      console.log("WASD:", 
-        keys.forward ? "W pressed" : "W not pressed",
-        keys.backward ? "S pressed" : "S not pressed",
-        keys.leftward ? "A pressed" : "A not pressed",
-        keys.rightward ? "D pressed" : "D not pressed"
-      );
-      
       // WASD moves player independently of facing direction
-      // Forward is always forward in world space, not relative to player rotation
       if (keys.forward) {
         moveZ -= speed; // Forward is -Z in world space
       }
@@ -145,72 +218,9 @@ const Player = () => {
       let newX = position.x + moveX;
       let newZ = position.z + moveZ;
 
-      // Check wall collisions
-      let canMove = true;
-      if (walls) {
-        for (const wall of walls) {
-          if (checkCollision(
-            { x: newX, z: newZ, width: 0.5, height: 0.5 },
-            { x: wall.position.x, z: wall.position.z, width: wall.size.width, height: wall.size.height }
-          )) {
-            canMove = false;
-            break;
-          }
-        }
-      }
-      
-      // Check object collisions
-      if (canMove && roomObjects) {
-        for (const obj of roomObjects) {
-          if (obj.collidable && checkCollision(
-            { x: newX, z: newZ, width: 0.5, height: 0.5 },
-            { x: obj.position.x, z: obj.position.z, width: obj.size.width, height: obj.size.height }
-          )) {
-            canMove = false;
-            break;
-          }
-        }
-      }
-      
-      // Check door collisions and transitions
-      if (doors) {
-        for (const door of doors) {
-          if (checkCollision(
-            { x: newX, z: newZ, width: 0.5, height: 0.5 },
-            { x: door.position.x, z: door.position.z, width: door.size.width, height: door.size.height }
-          )) {
-            if (door.locked) {
-              canMove = false;
-            } else {
-              // Transition to next room
-              setPosition({ 
-                x: door.targetPosition.x, 
-                y: position.y, 
-                z: door.targetPosition.z 
-              });
-              return;
-            }
-            break;
-          }
-        }
-      }
-      
-      // Check if reached captain cabin
-      if (captainCabin && checkCollision(
-        { x: newX, z: newZ, width: 0.5, height: 0.5 },
-        { x: captainCabin.position.x, z: captainCabin.position.z, width: captainCabin.size.width, height: captainCabin.size.height }
-      )) {
-        console.log("Reached captain cabin! You win!");
-        end();
-        return;
-      }
-      
-      // Apply movement if no collision
-      if (canMove) {
+      // Apply movement
+      if (moveX !== 0 || moveZ !== 0) {
         move({ x: newX, y: position.y, z: newZ });
-        
-        // We'll let the useEffect handle position updates
-        // playerRef.current.position is updated in useEffect
       }
       
       // Calculate angle to mouse position for aiming
@@ -224,28 +234,15 @@ const Player = () => {
       
       // Handle shooting (left mouse button)
       if (isShooting && isAiming) {
-        console.log("Player shooting in direction:", angleToMouse);
-        // Check for zombies in attack range and within field of view
+        console.log("Player shooting");
+        // Check for zombies in attack range
         zombies.forEach(zombie => {
           const distance = getDistance(
             position.x, position.z,
             zombie.position.x, zombie.position.z
           );
           
-          // Calculate angle to zombie
-          const zombieDx = zombie.position.x - position.x;
-          const zombieDz = zombie.position.z - position.z;
-          const angleToZombie = Math.atan2(zombieDx, zombieDz);
-          
-          // Calculate angle difference
-          let angleDiff = Math.abs(angleToMouse - angleToZombie);
-          if (angleDiff > Math.PI) angleDiff = 2 * Math.PI - angleDiff;
-          
-          // Check if zombie is in field of view (within 35% of full circle = ~126 degrees)
-          const fieldOfViewAngle = Math.PI * 0.7; // 126 degrees in radians
-          const inFieldOfView = angleDiff <= fieldOfViewAngle / 2;
-          
-          if (distance < 5.0 && inFieldOfView) { // Increased range for shooting
+          if (distance < 5.0) {
             // Hit zombie
             playHit();
             const zombieStore = useZombies.getState();
@@ -253,34 +250,6 @@ const Player = () => {
           }
         });
       }
-      
-      // Handle aiming visual indicator
-      if (isAiming) {
-        // Visual changes when aiming could be added here
-        // Like changing the player model or showing a targeting reticle
-      }
-      
-      // Check for zombie collisions (taking damage)
-      zombies.forEach(zombie => {
-        const distance = getDistance(
-          position.x, position.z,
-          zombie.position.x, zombie.position.z
-        );
-        
-        if (distance < 0.8 && zombie.attackCooldown <= 0) {
-          // Take damage from zombie
-          damage(10);
-          playHit();
-          const zombieStore = useZombies.getState();
-          zombieStore.resetZombieAttackCooldown(zombie.id);
-          
-          // Check if player is dead
-          if (health - 10 <= 0) {
-            console.log("Player died");
-            end();
-          }
-        }
-      });
     }
   });
   
@@ -337,4 +306,4 @@ const Player = () => {
   );
 };
 
-export default Player;
+export default PlayerDirect;
