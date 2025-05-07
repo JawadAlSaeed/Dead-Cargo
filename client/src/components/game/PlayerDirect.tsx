@@ -34,6 +34,8 @@ const PlayerDirect = () => {
   const [mousePos, setMousePos] = useState({ x: 0, z: 0 });
   const [isAiming, setIsAiming] = useState(false);
   const [isShooting, setIsShooting] = useState(false);
+  const [showMuzzleFlash, setShowMuzzleFlash] = useState(false);
+  const muzzleFlashTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Setup keyboard controls
   useEffect(() => {
@@ -175,9 +177,16 @@ const PlayerDirect = () => {
     };
   }, [camera]);
   
-  // Initialize player
+  // Initialize player and clean up muzzle flash timeout on unmount
   useEffect(() => {
     console.log("Player initialized with direct keyboard/mouse controls");
+    
+    // Clean up function
+    return () => {
+      if (muzzleFlashTimeoutRef.current) {
+        clearTimeout(muzzleFlashTimeoutRef.current);
+      }
+    };
   }, []);
   
   // Update actual model position whenever player position changes
@@ -235,6 +244,20 @@ const PlayerDirect = () => {
       // Handle shooting (left mouse button)
       if (isShooting && isAiming) {
         console.log("Player shooting");
+        
+        // Show muzzle flash effect
+        setShowMuzzleFlash(true);
+        
+        // Clear any existing timeout to avoid multiple timers
+        if (muzzleFlashTimeoutRef.current) {
+          clearTimeout(muzzleFlashTimeoutRef.current);
+        }
+        
+        // Hide the muzzle flash after a short time
+        muzzleFlashTimeoutRef.current = setTimeout(() => {
+          setShowMuzzleFlash(false);
+        }, 100); // Muzzle flash duration: 100ms
+        
         // Check for zombies in attack range
         zombies.forEach(zombie => {
           const distance = getDistance(
@@ -300,6 +323,26 @@ const PlayerDirect = () => {
             <circleGeometry args={[0.5, 16]} />
             <meshBasicMaterial color="#ff0000" transparent opacity={0.8} />
           </mesh>
+          
+          {/* Muzzle flash effect */}
+          {showMuzzleFlash && (
+            <group position={[0, 0.5, 2.5]}>
+              {/* Central flash */}
+              <mesh scale={[1.5, 1.5, 0.1]}>
+                <sphereGeometry args={[0.5, 16, 16]} />
+                <meshBasicMaterial color="#ffff00" />
+              </mesh>
+              
+              {/* Outer glow */}
+              <mesh scale={[2, 2, 0.05]}>
+                <sphereGeometry args={[0.5, 16, 16]} />
+                <meshBasicMaterial color="#ff9900" transparent opacity={0.6} />
+              </mesh>
+              
+              {/* Light effect */}
+              <pointLight color="#ffff00" intensity={5} distance={5} decay={2} />
+            </group>
+          )}
         </group>
       )}
     </group>
