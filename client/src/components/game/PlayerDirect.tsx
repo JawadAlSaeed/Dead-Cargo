@@ -236,7 +236,7 @@ const PlayerDirect = () => {
       
       if (currentRoom) {
         // Player bounding box (simplified as a circle for collision)
-        const playerRadius = 1.0; // Player collision radius
+        const playerRadius = 0.6; // Player collision radius
         
         // Check collision with walls
         for (const wall of currentRoom.walls) {
@@ -330,25 +330,25 @@ const PlayerDirect = () => {
       {/* ULTRA SIMPLIFIED PLAYER - just a large colored box */}
       <mesh 
         ref={playerRef}
-        position={[0, 0.5, 0]}
+        position={[0, 0.3, 0]}
       >
-        <boxGeometry args={[2, 1, 2]} />
+        <boxGeometry args={[1, 0.6, 1]} />
         <meshBasicMaterial color="#00ffff" />
       </mesh>
       
       {/* Direction arrow - clear indicator */}
       <mesh 
-        position={[0, 0.5, 1.5]}
+        position={[0, 0.3, 0.8]}
       >
-        <boxGeometry args={[1, 1, 1]} />
+        <boxGeometry args={[0.5, 0.5, 0.5]} />
         <meshBasicMaterial color="#0088ff" />
       </mesh>
       
       {/* Player head/marker */}
       <mesh 
-        position={[0, 1.5, 0]}
+        position={[0, 0.8, 0]}
       >
-        <sphereGeometry args={[0.5, 16, 16]} />
+        <sphereGeometry args={[0.3, 16, 16]} />
         <meshBasicMaterial color="#ff00ff" />
       </mesh>
       
@@ -357,8 +357,8 @@ const PlayerDirect = () => {
         <group>
           {/* Aiming laser line */}
           <mesh 
-            position={[0, 0.5, 4]} 
-            scale={[0.2, 0.2, 8]}
+            position={[0, 0.3, 3]} 
+            scale={[0.1, 0.1, 6]}
           >
             <boxGeometry args={[1, 1, 1]} />
             <meshBasicMaterial color="#ff0000" transparent opacity={0.6} />
@@ -366,30 +366,30 @@ const PlayerDirect = () => {
           
           {/* Aiming circle at end of laser */}
           <mesh 
-            position={[0, 0.5, 8]} 
+            position={[0, 0.3, 6]} 
             rotation={[Math.PI/2, 0, 0]}
           >
-            <circleGeometry args={[0.5, 16]} />
+            <circleGeometry args={[0.3, 16]} />
             <meshBasicMaterial color="#ff0000" transparent opacity={0.8} />
           </mesh>
           
           {/* Muzzle flash effect */}
           {showMuzzleFlash && (
-            <group position={[0, 0.5, 2.5]}>
+            <group position={[0, 0.3, 1.2]}>
               {/* Central flash */}
-              <mesh scale={[1.5, 1.5, 0.1]}>
-                <sphereGeometry args={[0.5, 16, 16]} />
+              <mesh scale={[0.8, 0.8, 0.1]}>
+                <sphereGeometry args={[0.3, 16, 16]} />
                 <meshBasicMaterial color="#ffff00" />
               </mesh>
               
               {/* Outer glow */}
-              <mesh scale={[2, 2, 0.05]}>
-                <sphereGeometry args={[0.5, 16, 16]} />
+              <mesh scale={[1, 1, 0.05]}>
+                <sphereGeometry args={[0.3, 16, 16]} />
                 <meshBasicMaterial color="#ff9900" transparent opacity={0.6} />
               </mesh>
               
               {/* Light effect */}
-              <pointLight color="#ffff00" intensity={5} distance={5} decay={2} />
+              <pointLight color="#ffff00" intensity={4} distance={3} decay={2} />
             </group>
           )}
         </group>

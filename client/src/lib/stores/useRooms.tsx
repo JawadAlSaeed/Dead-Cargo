@@ -84,17 +84,35 @@ export const useRooms = create<RoomsState>()(
     generateRoom: (type, size) => {
       const roomId = `room-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       
-      // Generate walls around perimeter
-      const walls: Wall[] = [
-        // Top wall
-        { position: { x: 0, z: -size.height/2 + 0.5 }, size: { width: size.width, height: 1 } },
-        // Bottom wall
-        { position: { x: 0, z: size.height/2 - 0.5 }, size: { width: size.width, height: 1 } },
-        // Left wall
-        { position: { x: -size.width/2 + 0.5, z: 0 }, size: { width: 1, height: size.height } },
-        // Right wall
+      // Generate walls around perimeter with gaps for doors
+      // We'll create multiple wall segments instead of full walls to allow for doors later
+      const doorWidth = 3; // Space we'll reserve for doors
+      const wallSegments: Wall[] = [];
+      
+      // Top wall (in two segments with space for a door in the middle)
+      const topSegmentWidth = (size.width - doorWidth) / 2;
+      wallSegments.push(
+        { position: { x: -size.width/4 - doorWidth/4, z: -size.height/2 + 0.5 }, size: { width: topSegmentWidth, height: 1 } },
+        { position: { x: size.width/4 + doorWidth/4, z: -size.height/2 + 0.5 }, size: { width: topSegmentWidth, height: 1 } }
+      );
+      
+      // Bottom wall (in two segments with space for a door in the middle)
+      wallSegments.push(
+        { position: { x: -size.width/4 - doorWidth/4, z: size.height/2 - 0.5 }, size: { width: topSegmentWidth, height: 1 } },
+        { position: { x: size.width/4 + doorWidth/4, z: size.height/2 - 0.5 }, size: { width: topSegmentWidth, height: 1 } }
+      );
+      
+      // Left wall (full)
+      wallSegments.push(
+        { position: { x: -size.width/2 + 0.5, z: 0 }, size: { width: 1, height: size.height } }
+      );
+      
+      // Right wall (full)
+      wallSegments.push(
         { position: { x: size.width/2 - 0.5, z: 0 }, size: { width: 1, height: size.height } }
-      ];
+      );
+      
+      const walls: Wall[] = wallSegments;
       
       // Generate doors (initially none, will be added when connecting rooms)
       const doors: Door[] = [];
@@ -249,13 +267,26 @@ export const useRooms = create<RoomsState>()(
       const hallwayWidth = width;
       const hallwayLength = length;
       
-      // Generate walls along the length of the hallway
-      const walls: Wall[] = [
-        // Top wall
-        { position: { x: 0, z: -hallwayWidth/2 + 0.5 }, size: { width: hallwayLength, height: 1 } },
-        // Bottom wall
-        { position: { x: 0, z: hallwayWidth/2 - 0.5 }, size: { width: hallwayLength, height: 1 } }
-      ];
+      // Generate walls along the length of the hallway with gaps for doors
+      const walls: Wall[] = [];
+      const doorGapSize = 4;
+      const wallSegmentLength = 10;
+      
+      // Create segments along the top wall
+      for (let x = -hallwayLength/2 + wallSegmentLength/2; x < hallwayLength/2; x += wallSegmentLength + doorGapSize) {
+        walls.push({
+          position: { x, z: -hallwayWidth/2 + 0.5 },
+          size: { width: wallSegmentLength, height: 1 }
+        });
+      }
+      
+      // Create segments along the bottom wall
+      for (let x = -hallwayLength/2 + wallSegmentLength/2; x < hallwayLength/2; x += wallSegmentLength + doorGapSize) {
+        walls.push({
+          position: { x, z: hallwayWidth/2 - 0.5 },
+          size: { width: wallSegmentLength, height: 1 }
+        });
+      }
       
       // Generate doors (initially none, will be added when connecting rooms)
       const doors: Door[] = [];
