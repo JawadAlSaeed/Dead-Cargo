@@ -213,12 +213,20 @@ export const useRooms = create<RoomsState>()(
 // This code has been replaced by the enhanced connectRooms method below
     
     setCurrentRoom: (roomId) => {
+      console.log(`TRANSITION: Attempting to set current room to ${roomId}`);
       const { rooms } = get();
+      
+      // Debug: log available rooms
+      console.log(`Available rooms: ${Object.keys(rooms).join(', ')}`);
       
       if (!rooms[roomId]) {
         console.error("Cannot set current room to nonexistent room:", roomId);
         return;
       }
+      
+      // Debug: log room data before transition
+      console.log(`TRANSITION: Room ${roomId} exists, type: ${rooms[roomId].type}`);
+      console.log(`Room has ${rooms[roomId].doors.length} doors and ${rooms[roomId].objects.length} objects`);
       
       // Update current room and its properties for easy access
       set((state) => ({
@@ -227,6 +235,8 @@ export const useRooms = create<RoomsState>()(
         doors: rooms[roomId].doors,
         roomObjects: rooms[roomId].objects
       }));
+      
+      console.log(`TRANSITION: Successfully changed to room ${roomId}`);
       
       // Mark the room as visited
       get().markRoomVisited(roomId);
