@@ -148,8 +148,8 @@ const Room = ({ roomId, roomType, isActive }: RoomProps) => {
         }
         
         // Set the current room to the target room
-        const { setCurrentRoom, setPosition } = useRooms.getState();
-        setCurrentRoom(nearbyDoor.targetRoomId);
+        const roomsState = useRooms.getState();
+        roomsState.setCurrentRoom(nearbyDoor.targetRoomId);
         
         // Update player position to the target position in the new room
         const playerState = usePlayer.getState();

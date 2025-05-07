@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { usePlayer } from "../../lib/stores/usePlayer";
 import { useZombies } from "../../lib/stores/useZombies";
 import { useAudio } from "../../lib/stores/useAudio";
-import { checkCollision, getDistance } from "../../lib/utils/collision";
+import { checkCollision, getDistance, isPointInRect } from "../../lib/utils/collision";
 import { useRooms } from "../../lib/stores/useRooms";
 import { useGame } from "../../lib/stores/useGame";
 
@@ -227,8 +227,57 @@ const PlayerDirect = () => {
       let newX = position.x + moveX;
       let newZ = position.z + moveZ;
 
-      // Apply movement
-      if (moveX !== 0 || moveZ !== 0) {
+      // Get current room data for collision detection
+      const roomsState = useRooms.getState();
+      const currentRoom = roomsState.getCurrentRoomData();
+      
+      // Check collision with walls
+      let collisionDetected = false;
+      
+      if (currentRoom) {
+        // Player bounding box (simplified as a circle for collision)
+        const playerRadius = 1.0; // Player collision radius
+        
+        // Check collision with walls
+        for (const wall of currentRoom.walls) {
+          // Use AABB collision detection with minimum distance
+          const isColliding = isPointInRect(
+            newX, newZ,
+            wall.position.x, 
+            wall.position.z,
+            wall.size.width + playerRadius * 2, 
+            wall.size.height + playerRadius * 2
+          );
+          
+          if (isColliding) {
+            collisionDetected = true;
+            console.log("Wall collision detected");
+            break;
+          }
+        }
+        
+        // Check collision with objects that are collidable
+        for (const object of currentRoom.objects) {
+          if (object.collidable) {
+            const isColliding = isPointInRect(
+              newX, newZ,
+              object.position.x, 
+              object.position.z,
+              object.size.width + playerRadius * 2, 
+              object.size.height + playerRadius * 2
+            );
+            
+            if (isColliding) {
+              collisionDetected = true;
+              console.log("Object collision detected");
+              break;
+            }
+          }
+        }
+      }
+      
+      // Apply movement only if no collision
+      if ((moveX !== 0 || moveZ !== 0) && !collisionDetected) {
         move({ x: newX, y: position.y, z: newZ });
       }
       
