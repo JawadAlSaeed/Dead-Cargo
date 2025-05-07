@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { usePlayer } from "../../lib/stores/usePlayer";
@@ -20,9 +20,26 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
   const zombies = useZombies();
   const { walls, roomObjects } = useRooms();
   
-  // Initialize zombie
+  // State for visual effects
+  const [isHit, setIsHit] = useState(false);
+  const [lastHealth, setLastHealth] = useState(health);
+  const [showBloodSplatter, setShowBloodSplatter] = useState(false);
+  const hitEffectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bloodSplatterTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Initialize zombie and clean up timeouts on unmount
   useEffect(() => {
     console.log(`Zombie ${zombieId} initialized at position:`, position);
+    
+    // Clean up function
+    return () => {
+      if (hitEffectTimeoutRef.current) {
+        clearTimeout(hitEffectTimeoutRef.current);
+      }
+      if (bloodSplatterTimeoutRef.current) {
+        clearTimeout(bloodSplatterTimeoutRef.current);
+      }
+    };
   }, [zombieId, position]);
   
   // Zombie AI and movement
@@ -103,6 +120,42 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
       zombieRef.current.position.z = position.z;
     }
   }, [position]);
+  
+  // Detect when the zombie takes damage and show hit effect
+  useEffect(() => {
+    if (health < lastHealth) {
+      console.log(`Zombie ${zombieId} took damage. Health: ${health}`);
+      
+      // Show hit flash effect
+      setIsHit(true);
+      
+      // Clear any existing hit effect timeout
+      if (hitEffectTimeoutRef.current) {
+        clearTimeout(hitEffectTimeoutRef.current);
+      }
+      
+      // Hide hit effect after a short time
+      hitEffectTimeoutRef.current = setTimeout(() => {
+        setIsHit(false);
+      }, 150); // Flash duration: 150ms
+      
+      // Show blood splatter effect
+      setShowBloodSplatter(true);
+      
+      // Clear any existing blood splatter timeout
+      if (bloodSplatterTimeoutRef.current) {
+        clearTimeout(bloodSplatterTimeoutRef.current);
+      }
+      
+      // Hide blood splatter after a longer time
+      bloodSplatterTimeoutRef.current = setTimeout(() => {
+        setShowBloodSplatter(false);
+      }, 300); // Blood splatter duration: 300ms
+    }
+    
+    // Update last health value
+    setLastHealth(health);
+  }, [health, lastHealth, zombieId]);
 
   return (
     <group ref={zombieModel}>
@@ -112,7 +165,7 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
         position={[0, 0.5, 0]}
       >
         <boxGeometry args={[1.5, 1, 1.5]} />
-        <meshBasicMaterial color="#ff0000" />
+        <meshBasicMaterial color={isHit ? "#ffffff" : "#ff0000"} />
       </mesh>
       
       {/* Health indicator - simple bar */}
@@ -121,8 +174,54 @@ const Zombie = ({ zombieId, position, health, speed }: ZombieProps) => {
         scale={[health/100, 0.2, 0.2]}
       >
         <boxGeometry args={[1, 1, 1]} />
-        <meshBasicMaterial color="#ff5555" />
+        <meshBasicMaterial color={isHit ? "#ffffff" : "#ff5555"} />
       </mesh>
+      
+      {/* Blood splatter effect - only shown when hit */}
+      {showBloodSplatter && (
+        <group>
+          {/* Central splatter */}
+          <mesh position={[0, 0.7, 0]} rotation={[0, 0, 0]}>
+            <sphereGeometry args={[0.8, 8, 8]} />
+            <meshBasicMaterial color="#880000" transparent opacity={0.8} />
+          </mesh>
+          
+          {/* Droplets */}
+          <mesh position={[0.7, 0.5, 0.3]} scale={[0.3, 0.3, 0.3]}>
+            <sphereGeometry args={[0.5, 8, 8]} />
+            <meshBasicMaterial color="#AA0000" transparent opacity={0.7} />
+          </mesh>
+          
+          <mesh position={[-0.5, 0.6, -0.4]} scale={[0.2, 0.2, 0.2]}>
+            <sphereGeometry args={[0.6, 8, 8]} />
+            <meshBasicMaterial color="#AA0000" transparent opacity={0.7} />
+          </mesh>
+          
+          <mesh position={[0.3, 0.4, -0.6]} scale={[0.25, 0.25, 0.25]}>
+            <sphereGeometry args={[0.4, 8, 8]} />
+            <meshBasicMaterial color="#AA0000" transparent opacity={0.7} />
+          </mesh>
+        </group>
+      )}
+      
+      {/* Damage number indicator */}
+      {isHit && (
+        <group position={[0, 2, 0]}>
+          {/* Simple damage indicator using shapes instead of text */}
+          <mesh position={[0, 0, 0]} scale={[0.08, 0.3, 0.08]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color="#ffff00" />
+          </mesh>
+          <mesh position={[0.15, 0, 0]} scale={[0.08, 0.3, 0.08]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color="#ffff00" />
+          </mesh>
+          <mesh position={[0.3, 0, 0]} scale={[0.08, 0.3, 0.08]}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color="#ffff00" />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 };
