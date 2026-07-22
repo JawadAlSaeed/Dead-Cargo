@@ -9,7 +9,7 @@ import { isPointInRect } from "./collision";
 const WALL_T = 1; // wall thickness
 const DOOR_W = 3; // gap width in the wall for a door
 const HALLWAY_LEN = 56;
-const HALLWAY_DEPTH = 8;
+const HALLWAY_DEPTH = 7;
 
 interface RoomSpec {
   id: string;
@@ -18,19 +18,20 @@ interface RoomSpec {
   w: number;
   h: number;
   hallX: number; // where along the hallway its door sits
-  topSide: boolean; // attached to hallway's top (-z) wall
   zombies: number;
   searchables: number;
   decor: number;
 }
 
+// All rooms line the same (inboard) side of the corridor — the far wall is
+// the ship's hull, with windows onto open water instead of more rooms.
 const ROOM_SPECS: RoomSpec[] = [
-  { id: "bedroom", type: "bedroom", label: "Crew Bedroom", w: 14, h: 12, hallX: -22.5, topSide: true, zombies: 0, searchables: 2, decor: 2 },
-  { id: "kitchen", type: "kitchen", label: "Galley", w: 16, h: 12, hallX: -13.5, topSide: false, zombies: 2, searchables: 3, decor: 3 },
-  { id: "medical", type: "medical", label: "Medical Bay", w: 14, h: 12, hallX: -4.5, topSide: true, zombies: 2, searchables: 3, decor: 2 },
-  { id: "cargo", type: "cargo", label: "Cargo Hold", w: 18, h: 14, hallX: 4.5, topSide: false, zombies: 3, searchables: 4, decor: 4 },
-  { id: "engine", type: "engine", label: "Engine Room", w: 16, h: 14, hallX: 13.5, topSide: true, zombies: 3, searchables: 3, decor: 3 },
-  { id: "captain", type: "captainCabin", label: "Captain's Cabin", w: 12, h: 10, hallX: 22.5, topSide: false, zombies: 1, searchables: 1, decor: 1 }
+  { id: "bedroom", type: "bedroom", label: "Crew Bedroom", w: 14, h: 12, hallX: -22.5, zombies: 0, searchables: 2, decor: 2 },
+  { id: "kitchen", type: "kitchen", label: "Galley", w: 16, h: 12, hallX: -13.5, zombies: 2, searchables: 3, decor: 3 },
+  { id: "medical", type: "medical", label: "Medical Bay", w: 14, h: 12, hallX: -4.5, zombies: 2, searchables: 3, decor: 2 },
+  { id: "cargo", type: "cargo", label: "Cargo Hold", w: 18, h: 14, hallX: 4.5, zombies: 3, searchables: 4, decor: 4 },
+  { id: "engine", type: "engine", label: "Engine Room", w: 16, h: 14, hallX: 13.5, zombies: 3, searchables: 3, decor: 3 },
+  { id: "captain", type: "captainCabin", label: "Captain's Cabin", w: 12, h: 10, hallX: 22.5, zombies: 1, searchables: 1, decor: 1 }
 ];
 
 const OBJECT_STYLES: Record<string, { types: string[]; colors: string[] }> = {
@@ -104,9 +105,9 @@ function placeObject(
 
 function buildRoom(spec: RoomSpec): Room {
   const { w, h } = spec;
-  // The room's door back to the hallway sits centered on the wall that faces it:
-  // top-attached rooms return through their bottom wall, and vice versa.
-  const doorZSign = spec.topSide ? 1 : -1;
+  // Every room's door sits on its south wall, facing the hallway that runs
+  // along the ship's spine just outside it.
+  const doorZSign = 1;
   const doorWallZ = doorZSign * (h / 2 - WALL_T / 2);
 
   const walls: Wall[] = [
@@ -125,7 +126,7 @@ function buildRoom(spec: RoomSpec): Room {
       position: { x: 0, z: doorWallZ },
       size: { width: DOOR_W, height: 1.6 },
       targetRoomId: "hallway",
-      targetPosition: { x: spec.hallX, z: spec.topSide ? -1.0 : 1.0 },
+      targetPosition: { x: spec.hallX, z: -1.0 },
       locked: false
     }
   ];
@@ -188,22 +189,26 @@ function buildRoom(spec: RoomSpec): Room {
 function buildHallway(): Room {
   const w = HALLWAY_LEN;
   const h = HALLWAY_DEPTH;
-  const topGaps = ROOM_SPECS.filter((s) => s.topSide).map((s) => s.hallX);
-  const bottomGaps = ROOM_SPECS.filter((s) => !s.topSide).map((s) => s.hallX);
+  const roomGaps = ROOM_SPECS.map((s) => s.hallX);
+
+  // South wall is the ship's hull: no doors, just windows onto open water.
+  const hullWall: Wall[] = wallSegments(true, h / 2 - WALL_T / 2, -w / 2, w / 2, []).map(
+    (wall) => ({ ...wall, isWindow: true })
+  );
 
   const walls: Wall[] = [
-    ...wallSegments(true, -h / 2 + WALL_T / 2, -w / 2, w / 2, topGaps),
-    ...wallSegments(true, h / 2 - WALL_T / 2, -w / 2, w / 2, bottomGaps),
+    ...wallSegments(true, -h / 2 + WALL_T / 2, -w / 2, w / 2, roomGaps),
+    ...hullWall,
     ...wallSegments(false, -w / 2 + WALL_T / 2, -h / 2, h / 2, []),
     ...wallSegments(false, w / 2 - WALL_T / 2, -h / 2, h / 2, [])
   ];
 
   const doors: Door[] = ROOM_SPECS.map((s) => ({
     id: `hall-door-${s.id}`,
-    position: { x: s.hallX, z: s.topSide ? -h / 2 + WALL_T / 2 : h / 2 - WALL_T / 2 },
+    position: { x: s.hallX, z: -h / 2 + WALL_T / 2 },
     size: { width: DOOR_W, height: 1.6 },
     targetRoomId: s.id,
-    targetPosition: { x: 0, z: s.topSide ? s.h / 2 - 3 : -s.h / 2 + 3 },
+    targetPosition: { x: 0, z: s.h / 2 - 3 },
     locked: s.type === "captainCabin",
     keyId: s.type === "captainCabin" ? "captain" : undefined
   }));

@@ -3,6 +3,9 @@
 export interface Wall {
   position: { x: number; z: number };
   size: { width: number; height: number };
+  // True for the hallway's outer hull wall — rendered as glass with the sea
+  // visible beyond it, instead of an opaque bulkhead.
+  isWindow?: boolean;
 }
 
 export interface Door {

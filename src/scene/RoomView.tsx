@@ -1,14 +1,16 @@
 // Renders the current room: textured floor, walls, door markers, furniture.
 // All static per room — nothing here updates per frame.
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import * as THREE from "three";
+import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { Room, RoomObject } from "../game/types";
+import { Room, RoomObject, Wall } from "../game/types";
 import { useGameStore } from "../state/useGameStore";
 import { world } from "../game/world";
 
 const WALL_HEIGHT = 2.4;
+const OCEAN_DEPTH = 70;
 
 const OBJECT_HEIGHTS: Record<string, number> = {
   crate: 1.0,
@@ -110,6 +112,66 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
   );
 }
 
+/** The hallway's hull wall: tinted glass with a few frame mullions. */
+function WindowWall({ wall }: { wall: Wall }) {
+  const mullionCount = Math.max(1, Math.floor(wall.size.width / 5));
+  return (
+    <group position={[wall.position.x, WALL_HEIGHT / 2, wall.position.z]}>
+      <mesh>
+        <boxGeometry args={[wall.size.width, WALL_HEIGHT, wall.size.height]} />
+        <meshStandardMaterial
+          color="#284a56"
+          transparent
+          opacity={0.32}
+          roughness={0.15}
+          metalness={0.3}
+        />
+      </mesh>
+      {/* Frame: one waist-high rail plus evenly spaced mullions */}
+      <mesh position={[0, WALL_HEIGHT * 0.1, 0]}>
+        <boxGeometry args={[wall.size.width, 0.12, wall.size.height + 0.02]} />
+        <meshStandardMaterial color="#1c2226" roughness={0.8} />
+      </mesh>
+      {Array.from({ length: mullionCount + 1 }, (_, i) => {
+        const x = -wall.size.width / 2 + (i * wall.size.width) / mullionCount;
+        return (
+          <mesh key={i} position={[x, 0, 0]}>
+            <boxGeometry args={[0.1, WALL_HEIGHT, wall.size.height + 0.02]} />
+            <meshStandardMaterial color="#1c2226" roughness={0.8} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+/** Dark water visible through the hallway's windows, fading into the fog. */
+function OceanBackdrop({ wall }: { wall: Wall }) {
+  const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  useFrame(() => {
+    if (matRef.current) {
+      matRef.current.emissiveIntensity = 0.07 + Math.sin(performance.now() / 1400) * 0.03;
+    }
+  });
+  const outerZ = wall.position.z + wall.size.height / 2;
+  return (
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[wall.position.x, -1.1, outerZ + OCEAN_DEPTH / 2]}
+    >
+      <planeGeometry args={[wall.size.width + 30, OCEAN_DEPTH]} />
+      <meshStandardMaterial
+        ref={matRef}
+        color="#0b2e3a"
+        emissive="#0b2e3a"
+        emissiveIntensity={0.07}
+        roughness={0.25}
+        metalness={0.4}
+      />
+    </mesh>
+  );
+}
+
 export function RoomView({ room }: { room: Room }) {
   const searched = useGameStore((s) => s.searched);
   const unlockedDoors = useGameStore((s) => s.unlockedDoors);
@@ -118,16 +180,23 @@ export function RoomView({ room }: { room: Room }) {
     <group>
       <Floor room={room} />
 
-      {room.walls.map((wall, i) => (
-        <mesh
-          key={`${room.id}-wall-${i}`}
-          position={[wall.position.x, WALL_HEIGHT / 2, wall.position.z]}
-          castShadow
-        >
-          <boxGeometry args={[wall.size.width, WALL_HEIGHT, wall.size.height]} />
-          <meshStandardMaterial color="#3a4048" roughness={0.9} />
-        </mesh>
-      ))}
+      {room.walls.map((wall, i) =>
+        wall.isWindow ? (
+          <group key={`${room.id}-wall-${i}`}>
+            <OceanBackdrop wall={wall} />
+            <WindowWall wall={wall} />
+          </group>
+        ) : (
+          <mesh
+            key={`${room.id}-wall-${i}`}
+            position={[wall.position.x, WALL_HEIGHT / 2, wall.position.z]}
+            castShadow
+          >
+            <boxGeometry args={[wall.size.width, WALL_HEIGHT, wall.size.height]} />
+            <meshStandardMaterial color="#3a4048" roughness={0.9} />
+          </mesh>
+        )
+      )}
 
       {room.doors.map((door) => {
         const isLocked = door.locked && !unlockedDoors[door.id];
