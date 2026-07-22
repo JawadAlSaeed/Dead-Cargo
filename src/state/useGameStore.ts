@@ -1,5 +1,5 @@
 // Central game state: phase, health, ammo, the generated ship, zombie health,
-// searched containers and door locks. Per-frame data (positions) lives in
+// container loot and door locks. Per-frame data (positions) lives in
 // src/game/world.ts, not here.
 
 import { create } from "zustand";
@@ -10,11 +10,13 @@ import {
   CAPTAIN_KEY,
   HEALING_TYPES,
   ItemBlueprint,
+  UPGRADE_TYPES,
   WEAPON_TYPES,
   generateRandomItem
 } from "../game/items";
+import { canPlace, findPlacement } from "../game/grid";
 import { resetWorld, world } from "../game/world";
-import { useInventory } from "./useInventory";
+import { InventoryItem, itemFromBlueprint, useInventory } from "./useInventory";
 import { useAudio } from "./useAudio";
 
 export type GamePhase = "menu" | "playing" | "dead" | "won";
@@ -23,6 +25,14 @@ interface ZombieLive {
   hp: number;
   alive: boolean;
 }
+
+export interface ContainerState {
+  gridSize: { width: number; height: number };
+  items: InventoryItem[];
+}
+
+/** 'inventory' or a container object id. */
+export type GridSide = string;
 
 interface GameState {
   phase: GamePhase;
@@ -33,6 +43,8 @@ interface GameState {
   searched: Record<string, boolean>;
   unlockedDoors: Record<string, boolean>;
   zombies: Record<string, ZombieLive>;
+  containers: Record<string, ContainerState>;
+  lootTarget: { objectId: string; firstOpen: boolean } | null;
   equippedItemId: string | null;
   ammoLoaded: number;
   message: { text: string; at: number } | null;
@@ -45,7 +57,18 @@ interface GameState {
 
   damagePlayer: (amount: number) => void;
   enterRoom: (door: Door) => void;
-  searchObject: (roomId: string, objectId: string) => void;
+  openContainer: (roomId: string, objectId: string) => void;
+  closeLoot: () => void;
+  /**
+   * Move an item between grids ('inventory' or a container id), optionally to
+   * an exact cell/rotation; without a target it auto-places. Returns success.
+   */
+  transferItem: (
+    source: GridSide,
+    dest: GridSide,
+    itemId: string,
+    target?: { x: number; y: number; rotation: number }
+  ) => boolean;
   interactRadio: () => void;
   hitZombie: (zombieId: string, damage: number) => void;
   fireShot: () => boolean;
@@ -60,6 +83,30 @@ const STARTING_ITEMS: ItemBlueprint[] = [
   AMMO_TYPES.PISTOL_AMMO
 ];
 
+const CONTAINER_SIZES: Record<string, { width: number; height: number }> = {
+  footlocker: { width: 4, height: 2 },
+  crate: { width: 4, height: 3 },
+  cabinet: { width: 4, height: 3 },
+  locker: { width: 4, height: 4 }
+};
+
+function generateContainer(guaranteed?: "captainKey" | "backpack", type?: string): ContainerState {
+  const gridSize = CONTAINER_SIZES[type ?? ""] ?? { width: 4, height: 3 };
+  const blueprints: ItemBlueprint[] = [];
+  if (guaranteed === "captainKey") blueprints.push(CAPTAIN_KEY);
+  if (guaranteed === "backpack") blueprints.push(UPGRADE_TYPES.BACKPACK);
+  const count = 1 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < count; i++) blueprints.push(generateRandomItem());
+
+  const items: InventoryItem[] = [];
+  for (const bp of blueprints) {
+    const spot = findPlacement(bp.shape, gridSize, items);
+    if (!spot) continue; // container ran out of space — drop the extra item
+    items.push(itemFromBlueprint(bp, { x: spot.x, y: spot.y }, spot.rotation));
+  }
+  return { gridSize, items };
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   phase: "menu",
   health: 100,
@@ -69,6 +116,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   searched: {},
   unlockedDoors: {},
   zombies: {},
+  containers: {},
+  lootTarget: null,
   equippedItemId: null,
   ammoLoaded: 0,
   message: null,
@@ -93,6 +142,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       searched: {},
       unlockedDoors: {},
       zombies,
+      containers: {},
+      lootTarget: null,
       equippedItemId: pistol?.id ?? null,
       ammoLoaded: 8,
       message: { text: "Find the Captain's Key. Reach the radio in the Captain's Cabin.", at: performance.now() },
@@ -102,7 +153,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   backToMenu: () => {
     useAudio.getState().stopMusic();
-    set({ phase: "menu", ship: null, inventoryOpen: false });
+    set({ phase: "menu", ship: null, inventoryOpen: false, lootTarget: null });
   },
 
   setMessage: (text) => set({ message: { text, at: performance.now() } }),
@@ -115,7 +166,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     useAudio.getState().playHit();
     if (next <= 0) {
       useAudio.getState().stopMusic();
-      set({ health: 0, phase: "dead" });
+      set({ health: 0, phase: "dead", inventoryOpen: false, lootTarget: null });
     } else {
       set({ health: next });
     }
@@ -138,27 +189,115 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ currentRoomId: door.targetRoomId });
   },
 
-  searchObject: (roomId, objectId) => {
-    const { ship, searched, setMessage } = get();
-    if (!ship || searched[objectId]) return;
+  openContainer: (roomId, objectId) => {
+    const { ship, containers, searched } = get();
+    if (!ship) return;
     const obj = ship.rooms[roomId]?.objects.find((o) => o.id === objectId);
     if (!obj || !obj.containsItem) return;
 
-    const loot: ItemBlueprint = obj.guaranteedItem === "captainKey" ? CAPTAIN_KEY : generateRandomItem();
-    const added = useInventory.getState().addItem(loot);
-    if (!added) {
-      setMessage("Inventory full — make room and search again.");
-      return;
+    const firstOpen = !containers[objectId];
+    const nextContainers = firstOpen
+      ? { ...containers, [objectId]: generateContainer(obj.guaranteedItem, obj.type) }
+      : containers;
+
+    set({
+      containers: nextContainers,
+      lootTarget: { objectId, firstOpen },
+      searched: { ...searched, [objectId]: true },
+      inventoryOpen: false
+    });
+  },
+
+  closeLoot: () => set({ lootTarget: null }),
+
+  transferItem: (source, dest, itemId, target) => {
+    const { containers, equippedItemId, setMessage } = get();
+    const inv = useInventory.getState();
+
+    const sideOf = (side: GridSide) =>
+      side === "inventory"
+        ? { grid: inv.gridSize, items: inv.items }
+        : { grid: containers[side]?.gridSize, items: containers[side]?.items ?? [] };
+
+    const from = sideOf(source);
+    const to = sideOf(dest);
+    if (!from.grid || !to.grid) return false;
+    const item = from.items.find((i) => i.id === itemId);
+    if (!item) return false;
+
+    // Work out the destination placement.
+    let placement: { x: number; y: number; rotation: number } | null = null;
+    if (target) {
+      const ignoreId = source === dest ? itemId : undefined;
+      if (canPlace(item.shape, target.rotation, target.x, target.y, to.grid, to.items, ignoreId)) {
+        placement = target;
+      }
+    } else {
+      const itemsForSearch = source === dest ? to.items.filter((i) => i.id !== itemId) : to.items;
+      placement = findPlacement(item.shape, to.grid, itemsForSearch);
     }
-    useAudio.getState().playSuccess();
-    setMessage(`Found: ${loot.name}`);
-    set({ searched: { ...searched, [objectId]: true } });
+    if (!placement) {
+      setMessage("No room for that.");
+      return false;
+    }
+
+    const placed: InventoryItem = {
+      ...item,
+      position: { x: placement.x, y: placement.y },
+      rotation: placement.rotation
+    };
+
+    // Same-grid move.
+    if (source === dest) {
+      if (source === "inventory") {
+        inv.placeItem(itemId, placement.x, placement.y, placement.rotation);
+      } else {
+        set({
+          containers: {
+            ...containers,
+            [source]: {
+              ...containers[source],
+              items: containers[source].items.map((i) => (i.id === itemId ? placed : i))
+            }
+          }
+        });
+      }
+      return true;
+    }
+
+    // Cross-grid: remove from source, insert into destination.
+    if (source === "inventory") {
+      if (itemId === equippedItemId) set({ equippedItemId: null, ammoLoaded: 0 });
+      inv.removeItem(itemId);
+    } else {
+      set((s) => ({
+        containers: {
+          ...s.containers,
+          [source]: {
+            ...s.containers[source],
+            items: s.containers[source].items.filter((i) => i.id !== itemId)
+          }
+        }
+      }));
+    }
+    if (dest === "inventory") {
+      inv.insertItem(placed);
+      useAudio.getState().playSuccess();
+    } else {
+      set((s) => ({
+        containers: {
+          ...s.containers,
+          [dest]: { ...s.containers[dest], items: [...s.containers[dest].items, placed] }
+        }
+      }));
+    }
+    return true;
   },
 
   interactRadio: () => {
     useAudio.getState().playSuccess();
     useAudio.getState().stopMusic();
-    set({ phase: "won" });
+    set({ phase: "won", inventoryOpen: false, lootTarget: null });
   },
 
   hitZombie: (zombieId, damage) => {
@@ -231,6 +370,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         setMessage(`Equipped ${item.name} — press R to load it.`);
         break;
       }
+      case "upgrade": {
+        const expand = item.properties.expand;
+        if (!expand) return;
+        if (!inv.expandGrid(expand.w, expand.h)) {
+          setMessage("Your pack can't be expanded any further.");
+          return;
+        }
+        inv.removeItem(itemId);
+        useAudio.getState().playSuccess();
+        const grown = useInventory.getState().gridSize;
+        setMessage(`${item.name} attached — inventory is now ${grown.width}×${grown.height}.`);
+        break;
+      }
       case "key":
         setMessage("Bring it to the locked door.");
         break;
@@ -255,3 +407,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     setMessage(`Dropped ${item.name}.`);
   }
 }));
+
+/** True when any full-screen UI (inventory or loot window) is open. */
+export function isUiOpen(s: { inventoryOpen: boolean; lootTarget: unknown }): boolean {
+  return s.inventoryOpen || s.lootTarget !== null;
+}

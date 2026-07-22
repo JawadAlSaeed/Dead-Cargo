@@ -9,7 +9,7 @@ import { world } from "../game/world";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance, isPointInRect } from "../game/collision";
 import { Room } from "../game/types";
-import { useGameStore } from "../state/useGameStore";
+import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useInventory } from "../state/useInventory";
 
 const PLAYER_SPEED = 4.5;
@@ -78,7 +78,7 @@ function tryInteract(room: Room) {
   if (nearest.type === "radio") {
     store.interactRadio();
   } else {
-    store.searchObject(room.id, nearest.id);
+    store.openContainer(room.id, nearest.id);
   }
 }
 
@@ -94,15 +94,18 @@ export function Player({ room }: { room: Room }) {
       world.keys[e.code] = true;
       const store = useGameStore.getState();
       if (store.phase !== "playing") return;
-      if (e.code === "KeyE" && !store.inventoryOpen) tryInteract(room);
-      if (e.code === "KeyR" && !store.inventoryOpen) store.reload();
+      if (e.code === "KeyE") {
+        if (store.lootTarget) store.closeLoot();
+        else if (!store.inventoryOpen) tryInteract(room);
+      }
+      if (e.code === "KeyR" && !isUiOpen(store)) store.reload();
     };
     const up = (e: KeyboardEvent) => {
       world.keys[e.code] = false;
     };
     const mouseDown = (e: MouseEvent) => {
       const store = useGameStore.getState();
-      if (store.phase !== "playing" || store.inventoryOpen) return;
+      if (store.phase !== "playing" || isUiOpen(store)) return;
       if (e.button === 2) world.aiming = true;
       if (e.button === 0 && world.aiming) tryShoot();
     };
@@ -124,7 +127,7 @@ export function Player({ room }: { room: Room }) {
   useFrame((_, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
     const store = useGameStore.getState();
-    if (store.phase !== "playing" || store.inventoryOpen) return;
+    if (store.phase !== "playing" || isUiOpen(store)) return;
 
     const { player, keys, aim } = world;
 

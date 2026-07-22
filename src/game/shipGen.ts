@@ -284,10 +284,15 @@ export function generateShip(): Ship {
   }
   rooms["hallway"] = buildHallway();
 
-  // Guarantee the Captain's Key in one searchable container in a mid-ship room.
+  // Guarantee the Captain's Key in one searchable container in a mid-ship room,
+  // and a Backpack upgrade somewhere in the cargo hold.
   const keyRoomId = pick(["kitchen", "medical", "cargo", "engine"]);
   const candidates = rooms[keyRoomId].objects.filter((o) => o.containsItem);
   pick(candidates).guaranteedItem = "captainKey";
+  const cargoCandidates = rooms["cargo"].objects.filter(
+    (o) => o.containsItem && !o.guaranteedItem
+  );
+  pick(cargoCandidates).guaranteedItem = "backpack";
 
   return {
     rooms,

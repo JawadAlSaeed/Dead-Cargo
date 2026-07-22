@@ -1,91 +1,75 @@
-// Grid inventory panel (Tab). Click an item to select it, then use the action
-// buttons, or click an empty cell to move the selected item there.
+// Inventory window (Tab). Drag items to rearrange (R rotates while held),
+// click to select, double-click to use/equip.
 
-import { useState } from "react";
-import { useInventory } from "../state/useInventory";
-import { useGameStore } from "../state/useGameStore";
-
-const CELL = 52;
-
-const TYPE_COLORS: Record<string, string> = {
-  weapon: "#7c4a2d",
-  healing: "#2d6b3c",
-  ammo: "#6b632d",
-  key: "#8a7420",
-  misc: "#44484f"
-};
+import { useCallback, useState } from "react";
+import { InventoryItem, useInventory } from "../state/useInventory";
+import { GridSide, useGameStore } from "../state/useGameStore";
+import { canPlace } from "../game/grid";
+import { DragGhost, GridView, useDragController } from "./GridView";
 
 export function InventoryPanel() {
   const gridSize = useInventory((s) => s.gridSize);
   const items = useInventory((s) => s.items);
-  const moveItem = useInventory((s) => s.moveItem);
-  const rotateItem = useInventory((s) => s.rotateItem);
   const useItem = useGameStore((s) => s.useItem);
   const dropItem = useGameStore((s) => s.dropItem);
+  const transferItem = useGameStore((s) => s.transferItem);
   const equippedItemId = useGameStore((s) => s.equippedItemId);
   const setInventoryOpen = useGameStore((s) => s.setInventoryOpen);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
-  const cellClick = (x: number, y: number) => {
-    if (selected) moveItem(selected.id, x, y);
+  const onClickItem = useCallback((item: InventoryItem) => {
+    setSelectedId((cur) => (cur === item.id ? null : item.id));
+  }, []);
+
+  const { drag, mouse, grab, endDrag } = useDragController(onClickItem);
+
+  const canDropAt = (_side: GridSide, x: number, y: number) => {
+    if (!drag) return false;
+    const inv = useInventory.getState();
+    return canPlace(drag.item.shape, drag.rotation, x, y, inv.gridSize, inv.items, drag.item.id);
+  };
+
+  const onDropAt = (_side: GridSide, x: number, y: number) => {
+    if (!drag) return;
+    transferItem("inventory", "inventory", drag.item.id, { x, y, rotation: drag.rotation });
+    endDrag();
+  };
+
+  const rotateSelected = () => {
+    if (!selected) return;
+    transferItem("inventory", "inventory", selected.id, {
+      x: selected.position.x,
+      y: selected.position.y,
+      rotation: (selected.rotation + 1) % 4
+    });
   };
 
   return (
     <div className="inv-overlay">
       <div className="inv-panel">
         <div className="inv-header">
-          <span>CARGO — INVENTORY</span>
+          <span>
+            INVENTORY — {gridSize.width}×{gridSize.height}
+          </span>
           <button className="btn btn-small" onClick={() => setInventoryOpen(false)}>
             Close (Tab)
           </button>
         </div>
 
-        <div
-          className="inv-grid"
-          style={{ width: gridSize.width * CELL, height: gridSize.height * CELL }}
-        >
-          {Array.from({ length: gridSize.width * gridSize.height }, (_, i) => {
-            const x = i % gridSize.width;
-            const y = Math.floor(i / gridSize.width);
-            return (
-              <div
-                key={i}
-                className="inv-cell"
-                style={{ left: x * CELL, top: y * CELL, width: CELL, height: CELL }}
-                onClick={() => cellClick(x, y)}
-              />
-            );
-          })}
-          {items.map((item) => {
-            const w = (item.rotated ? item.size.height : item.size.width) * CELL;
-            const h = (item.rotated ? item.size.width : item.size.height) * CELL;
-            return (
-              <div
-                key={item.id}
-                className={`inv-item ${item.id === selectedId ? "selected" : ""} ${
-                  item.id === equippedItemId ? "equipped" : ""
-                }`}
-                style={{
-                  left: item.position.x * CELL + 2,
-                  top: item.position.y * CELL + 2,
-                  width: w - 4,
-                  height: h - 4,
-                  background: TYPE_COLORS[item.type] ?? TYPE_COLORS.misc
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedId(item.id === selectedId ? null : item.id);
-                }}
-              >
-                <span>{item.name}</span>
-                {item.type === "ammo" && <em>×{item.properties.ammoCount}</em>}
-                {item.id === equippedItemId && <em>equipped</em>}
-              </div>
-            );
-          })}
-        </div>
+        <GridView
+          side="inventory"
+          gridSize={gridSize}
+          items={items}
+          drag={drag}
+          grab={grab}
+          onDropAt={onDropAt}
+          canDropAt={canDropAt}
+          onDoubleClickItem={(item) => useItem(item.id)}
+          selectedId={selectedId}
+          equippedItemId={equippedItemId}
+        />
 
         <div className="inv-actions">
           {selected ? (
@@ -93,7 +77,7 @@ export function InventoryPanel() {
               <button className="btn" onClick={() => useItem(selected.id)}>
                 {selected.type === "weapon" ? "Equip" : "Use"}
               </button>
-              <button className="btn" onClick={() => rotateItem(selected.id)}>
+              <button className="btn" onClick={rotateSelected}>
                 Rotate
               </button>
               <button
@@ -107,10 +91,13 @@ export function InventoryPanel() {
               </button>
             </>
           ) : (
-            <span className="inv-hint">Select an item, or click a free cell to move it.</span>
+            <span className="inv-hint">
+              Drag to move · R rotates while holding · double-click to use
+            </span>
           )}
         </div>
       </div>
+      <DragGhost drag={drag} mouse={mouse} />
     </div>
   );
 }

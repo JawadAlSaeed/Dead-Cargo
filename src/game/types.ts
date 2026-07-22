@@ -24,8 +24,9 @@ export interface RoomObject {
   color: string;
   interactable: boolean;
   containsItem: boolean;
-  // When set, searching this object yields this specific item instead of random loot.
-  guaranteedItem?: "captainKey";
+  // When set, this object's container always holds this item in addition
+  // to its random loot.
+  guaranteedItem?: "captainKey" | "backpack";
 }
 
 export type RoomType =

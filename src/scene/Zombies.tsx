@@ -9,7 +9,7 @@ import { Room, ZombieSpawn } from "../game/types";
 import { world } from "../game/world";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance } from "../game/collision";
-import { useGameStore } from "../state/useGameStore";
+import { isUiOpen, useGameStore } from "../state/useGameStore";
 
 const AGGRO_RANGE = 9;
 const ATTACK_RANGE = 1.1;
@@ -52,7 +52,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const { player } = world;
     const dist = getDistance(pos.x, pos.z, player.x, player.z);
 
-    if (dist < AGGRO_RANGE && dist > ATTACK_RANGE * 0.6 && !store.inventoryOpen) {
+    if (dist < AGGRO_RANGE && dist > ATTACK_RANGE * 0.6 && !isUiOpen(store)) {
       let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
       let dz = ((player.z - pos.z) / dist) * spawn.speed * delta;
 
@@ -68,7 +68,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       moveWithCollision(pos, dx, dz, ZOMBIE_SIZE, colliders);
     }
 
-    if (dist < ATTACK_RANGE && performance.now() - lastAttackAt.current > ATTACK_COOLDOWN_MS) {
+    if (dist < ATTACK_RANGE && !isUiOpen(store) && performance.now() - lastAttackAt.current > ATTACK_COOLDOWN_MS) {
       lastAttackAt.current = performance.now();
       store.damagePlayer(ATTACK_DAMAGE);
     }
