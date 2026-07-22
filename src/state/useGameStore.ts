@@ -173,7 +173,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   enterRoom: (door) => {
-    const { ship, unlockedDoors, setMessage } = get();
+    const { ship, unlockedDoors, currentRoomId, setMessage } = get();
     if (!ship) return;
     if (door.locked && !unlockedDoors[door.id]) {
       const hasKey = useInventory
@@ -187,6 +187,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     world.player.z = door.targetPosition.z;
     world.zombiePos.clear();
     set({ currentRoomId: door.targetRoomId });
+    if (door.kind === "stairs") {
+      const fromFloor = ship.rooms[currentRoomId]?.floor;
+      const toFloor = ship.rooms[door.targetRoomId]?.floor;
+      if (fromFloor !== undefined && toFloor !== undefined) {
+        setMessage(toFloor > fromFloor ? "You climb to the upper deck." : "You descend to the lower deck.");
+      }
+    }
   },
 
   openContainer: (roomId, objectId) => {

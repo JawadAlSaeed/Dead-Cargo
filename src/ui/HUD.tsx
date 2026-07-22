@@ -33,11 +33,13 @@ export function HUD() {
 
   const healthPct = (health / maxHealth) * 100;
   const healthColor = healthPct > 60 ? "#3ecf5a" : healthPct > 30 ? "#e0b83a" : "#e04a3a";
+  const currentRoom = ship?.rooms[currentRoomId];
+  const roomLabel = currentRoom ? `Deck ${currentRoom.floor + 1} — ${currentRoom.label}` : "";
 
   return (
     <div className="hud">
       <div className="hud-top">
-        <div className="hud-room">{ship?.rooms[currentRoomId]?.label ?? ""}</div>
+        <div className="hud-room">{roomLabel}</div>
         {muted && <div className="hud-muted">MUTED (M)</div>}
       </div>
 

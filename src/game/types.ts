@@ -16,6 +16,9 @@ export interface Door {
   targetPosition: { x: number; z: number };
   locked: boolean;
   keyId?: string;
+  // Set for the connector between the two decks' hallways — rendered as an
+  // actual staircase instead of a plain doorway.
+  kind?: "stairs";
 }
 
 export interface RoomObject {
@@ -45,6 +48,7 @@ export interface Room {
   id: string;
   type: RoomType;
   label: string;
+  floor: number; // 0 = lower deck, 1 = upper deck
   size: { width: number; height: number };
   walls: Wall[];
   doors: Door[];

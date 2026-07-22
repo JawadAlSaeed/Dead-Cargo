@@ -5,7 +5,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { Room, RoomObject, Wall } from "../game/types";
+import { Door, Room, RoomObject, Wall } from "../game/types";
 import { useGameStore } from "../state/useGameStore";
 import { world } from "../game/world";
 
@@ -172,6 +172,41 @@ function OceanBackdrop({ wall }: { wall: Wall }) {
   );
 }
 
+/** Stairwell connector: a short flight of steps descending through the gap. */
+function StairsDoor({ door }: { door: Door }) {
+  const stepCount = 6;
+  const stepDepth = 0.55;
+  const stepRise = 0.32;
+  return (
+    <group position={[door.position.x, 0, door.position.z]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <planeGeometry args={[door.size.width, 1.4]} />
+        <meshStandardMaterial
+          color="#8a6a2a"
+          emissive="#8a6a2a"
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.55}
+        />
+      </mesh>
+      {Array.from({ length: stepCount }, (_, i) => {
+        const z = 1.0 + i * stepDepth;
+        const y = -0.1 - i * stepRise;
+        return (
+          <mesh key={i} position={[0, y, z]} castShadow>
+            <boxGeometry args={[door.size.width - 0.4, 0.18, stepDepth]} />
+            <meshStandardMaterial color="#4a4238" roughness={0.85} />
+          </mesh>
+        );
+      })}
+      <mesh position={[0, 1.4, 3.2]}>
+        <boxGeometry args={[0.4, 0.4, 0.4]} />
+        <meshStandardMaterial color="#8a6a2a" emissive="#8a6a2a" emissiveIntensity={1.2} />
+      </mesh>
+    </group>
+  );
+}
+
 export function RoomView({ room }: { room: Room }) {
   const searched = useGameStore((s) => s.searched);
   const unlockedDoors = useGameStore((s) => s.unlockedDoors);
@@ -199,6 +234,9 @@ export function RoomView({ room }: { room: Room }) {
       )}
 
       {room.doors.map((door) => {
+        if (door.kind === "stairs") {
+          return <StairsDoor key={door.id} door={door} />;
+        }
         const isLocked = door.locked && !unlockedDoors[door.id];
         return (
           <group key={door.id}>
