@@ -3,6 +3,9 @@
 export interface Wall {
   position: { x: number; z: number };
   size: { width: number; height: number };
+  // True for the hallway's outer hull wall — rendered as glass with the sea
+  // visible beyond it, instead of an opaque bulkhead.
+  isWindow?: boolean;
 }
 
 export interface Door {
@@ -13,6 +16,9 @@ export interface Door {
   targetPosition: { x: number; z: number };
   locked: boolean;
   keyId?: string;
+  // Set for the connector between the two decks' hallways — rendered as an
+  // actual staircase instead of a plain doorway.
+  kind?: "stairs";
 }
 
 export interface RoomObject {
@@ -42,6 +48,7 @@ export interface Room {
   id: string;
   type: RoomType;
   label: string;
+  floor: number; // 0 = lower deck, 1 = upper deck
   size: { width: number; height: number };
   walls: Wall[];
   doors: Door[];
