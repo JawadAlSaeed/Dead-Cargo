@@ -1,7 +1,7 @@
 # Dead Cargo
 ## A Roguelike Horror Inventory Management Adventure
 
-![Dead Cargo Game](generated-icon.png)
+![Dead Cargo Game](dead_cargo_logo.svg)
 
 ## Core Concept
 "Dead Cargo" is a top-down survival horror game where players control a courier trapped in a cursed cargo ship overrun by zombies. Inspired by Resident Evil's inventory system and Escape from Tarkov's loot containers, players must carefully manage limited, irregularly-shaped inventory space while scavenging supplies, fighting or fleeing the undead, and finding a way off the ship.
