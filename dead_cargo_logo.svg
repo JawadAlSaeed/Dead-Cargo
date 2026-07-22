@@ -1,0 +1,45 @@
+<svg viewBox="0 0 1000 450" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0b0d10"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+    <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c8232f"/>
+      <stop offset="55%" stop-color="#8c0f18"/>
+      <stop offset="100%" stop-color="#5c0a10"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="450" rx="18" fill="url(#bgGrad)"/>
+
+  <!-- top divider with anchor -->
+  <g transform="translate(500,95)" stroke="#6b6f76" stroke-width="2" fill="none" opacity="0.75">
+    <line x1="-260" y1="0" x2="-60" y2="0"/>
+    <line x1="60" y1="0" x2="260" y2="0"/>
+    <circle cx="0" cy="-22" r="7"/>
+    <line x1="0" y1="-15" x2="0" y2="20"/>
+    <path d="M -22 8 Q 0 34 22 8"/>
+    <line x1="-16" y1="-4" x2="16" y2="-4"/>
+  </g>
+
+  <!-- shadow layer -->
+  <text x="504" y="266" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-style="italic" font-size="110" fill="#2b0507" letter-spacing="6" opacity="0.9">DEAD CARGO</text>
+
+  <!-- main wordmark -->
+  <text x="500" y="260" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-style="italic" font-size="110" fill="url(#redGrad)" letter-spacing="6">DEAD CARGO</text>
+
+  <!-- subtle blood drips -->
+  <g fill="#6f0d13">
+     <path d="M 305 262 q 4 18 0 30 q -8 -6 -6 -18 q 2 -8 6 -12 Z"/>
+     <path d="M 660 264 q 5 22 0 36 q -9 -8 -6 -22 q 2 -9 6 -14 Z"/>
+  </g>
+
+  <!-- bottom divider -->
+  <g stroke="#54585e" stroke-width="1.5" opacity="0.8">
+     <line x1="280" y1="320" x2="720" y2="320"/>
+  </g>
+
+  <!-- subtitle -->
+  <text x="500" y="360" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="22" fill="#9aa0a6" letter-spacing="8">A CRUISE SHIP ROGUELIKE</text>
+</svg>
