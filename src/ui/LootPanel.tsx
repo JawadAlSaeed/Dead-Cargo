@@ -109,7 +109,7 @@ export function LootPanel() {
               Take All
             </button>
             <button className="btn btn-small" onClick={closeLoot}>
-              Close (E)
+              Close (F)
             </button>
           </div>
         </div>

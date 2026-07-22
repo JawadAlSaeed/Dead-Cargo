@@ -94,7 +94,7 @@ export function Player({ room }: { room: Room }) {
       world.keys[e.code] = true;
       const store = useGameStore.getState();
       if (store.phase !== "playing") return;
-      if (e.code === "KeyE") {
+      if (e.code === "KeyF") {
         if (store.lootTarget) store.closeLoot();
         else if (!store.inventoryOpen) tryInteract(room);
       }

@@ -60,7 +60,7 @@ export function HUD() {
           </div>
         </div>
         <div className="hud-hints">
-          WASD move · RMB aim · LMB shoot · E search · R reload · Tab inventory
+          WASD move · RMB aim · LMB shoot · F search · R reload · Tab inventory
         </div>
       </div>
     </div>

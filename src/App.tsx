@@ -13,7 +13,7 @@ export default function App() {
   const phase = useGameStore((s) => s.phase);
   const inventoryOpen = useGameStore((s) => s.inventoryOpen);
 
-  // App-level keys: Tab toggles inventory, E/Esc close the loot window, M mutes.
+  // App-level keys: Tab toggles inventory, F/Esc close the loot window, M mutes.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const store = useGameStore.getState();
