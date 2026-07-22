@@ -43,6 +43,13 @@
 - Tab to open inventory
 
 ## Technical Stack
-- Built with React Three Fiber and TypeScript
+- Built with React Three Fiber and TypeScript (plain Vite client app, no server)
 - Custom procedural generation for rooms and items
 - Real-time collision detection and combat mechanics
+
+## Getting Started
+```
+npm install
+npm run dev
+```
+Then open http://localhost:5173. `npm run build` produces a static production build in `dist/`.
