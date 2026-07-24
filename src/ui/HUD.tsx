@@ -105,11 +105,11 @@ export function HUD() {
         <div className="hud-ammo">
           <div className="hud-label">{weapon ? weapon.name.toUpperCase() : "UNARMED"}</div>
           <div className="hud-ammo-count">
-            {weapon ? `${ammoLoaded} / ${ammoReserve}` : "—"}
+            {!weapon ? "—" : weapon.properties.melee ? "MELEE" : `${ammoLoaded} / ${ammoReserve}`}
           </div>
         </div>
         <div className="hud-hints">
-          WASD move · RMB aim · LMB shoot · F search · R reload · Tab inventory
+          WASD move · RMB aim · LMB attack · F search · R reload · Tab inventory
         </div>
       </div>
     </div>

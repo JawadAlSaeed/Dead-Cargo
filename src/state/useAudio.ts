@@ -8,6 +8,7 @@ interface AudioState {
   playSuccess: () => void;
   playGunshot: (big: boolean) => void;
   playDryFire: () => void;
+  playMeleeSwing: () => void;
   playReloadClick: () => void;
   playFootstep: () => void;
   playGrowl: () => void;
@@ -43,6 +44,9 @@ export const useAudio = create<AudioState>((set, get) => ({
   },
   playDryFire: () => {
     if (!get().muted) sfx.playDryFire(0.3);
+  },
+  playMeleeSwing: () => {
+    if (!get().muted) sfx.playMeleeSwing(0.28);
   },
   playReloadClick: () => {
     if (!get().muted) sfx.playReloadClick(0.25);

@@ -1,6 +1,7 @@
 // Zombies for the current room. Live positions are kept in world.zombiePos
 // (refs, mutated in useFrame) — the store only tracks hp/alive, which changes
-// on discrete hits.
+// on discrete hits. Combat stats and visuals come from ZOMBIE_KINDS, keyed
+// by each spawn's kind.
 
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -11,14 +12,12 @@ import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance } from "../game/collision";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useAudio } from "../state/useAudio";
+import { ZOMBIE_KINDS } from "../game/zombieKinds";
 
-const AGGRO_RANGE = 9;
-const ATTACK_RANGE = 1.1;
-const ATTACK_COOLDOWN_MS = 1200;
-const ATTACK_DAMAGE = 10;
 const ZOMBIE_SIZE = 0.7;
 
 function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
+  const cfg = ZOMBIE_KINDS[spawn.kind];
   const groupRef = useRef<THREE.Group>(null);
   const bodyMat = useRef<THREE.MeshStandardMaterial>(null);
   const armLRef = useRef<THREE.Mesh>(null);
@@ -56,13 +55,13 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const { player } = world;
     const dist = getDistance(pos.x, pos.z, player.x, player.z);
 
-    const aggroed = dist < AGGRO_RANGE;
+    const aggroed = dist < cfg.aggroRange;
     if (aggroed && !wasAggroed.current && !isUiOpen(store)) {
       useAudio.getState().playGrowl();
     }
     wasAggroed.current = aggroed;
 
-    if (dist < AGGRO_RANGE && dist > ATTACK_RANGE * 0.6 && !isUiOpen(store)) {
+    if (dist < cfg.aggroRange && dist > cfg.attackRange * 0.6 && !isUiOpen(store)) {
       let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
       let dz = ((player.z - pos.z) / dist) * spawn.speed * delta;
 
@@ -78,9 +77,13 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       moveWithCollision(pos, dx, dz, ZOMBIE_SIZE, colliders);
     }
 
-    if (dist < ATTACK_RANGE && !isUiOpen(store) && performance.now() - lastAttackAt.current > ATTACK_COOLDOWN_MS) {
+    if (
+      dist < cfg.attackRange &&
+      !isUiOpen(store) &&
+      performance.now() - lastAttackAt.current > cfg.attackCooldownMs
+    ) {
       lastAttackAt.current = performance.now();
-      store.damagePlayer(ATTACK_DAMAGE);
+      store.damagePlayer(cfg.damage);
     }
 
     const group = groupRef.current;
@@ -92,7 +95,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     }
     // Twitchy reaching-arm sway, always active for an unsettled, restless feel.
     const t = performance.now() / 1000;
-    const armSwing = Math.sin(t * 3 + spawn.position.x) * 0.18;
+    const armSwing = Math.sin(t * cfg.armSwingSpeed + spawn.position.x) * 0.18;
     if (armLRef.current) armLRef.current.rotation.x = Math.PI / 2.4 + armSwing;
     if (armRRef.current) armRRef.current.rotation.x = Math.PI / 2.4 - armSwing;
   });
@@ -102,39 +105,39 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const pos = world.zombiePos.get(spawn.id) ?? spawn.position;
     return (
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[pos.x, 0.015, pos.z]}>
-        <circleGeometry args={[0.6, 10]} />
+        <circleGeometry args={[0.6 * cfg.scale, 10]} />
         <meshStandardMaterial color="#3a1410" transparent opacity={0.85} />
       </mesh>
     );
   }
 
   return (
-    <group ref={groupRef} position={[spawn.position.x, 0, spawn.position.z]}>
+    <group ref={groupRef} position={[spawn.position.x, 0, spawn.position.z]} scale={cfg.scale}>
       <mesh position={[0, 0.7, 0]} castShadow>
         <capsuleGeometry args={[0.32, 0.65, 6, 12]} />
-        <meshStandardMaterial ref={bodyMat} color="#5e7d4a" emissive="#1a0000" />
+        <meshStandardMaterial ref={bodyMat} color={cfg.bodyColor} emissive="#1a0000" />
       </mesh>
       <mesh position={[0, 1.35, 0.05]}>
         <sphereGeometry args={[0.22, 12, 12]} />
-        <meshStandardMaterial color="#75906a" />
+        <meshStandardMaterial color={cfg.headColor} />
       </mesh>
       {/* Eyes */}
       <mesh position={[-0.08, 1.4, 0.22]}>
         <sphereGeometry args={[0.035, 6, 6]} />
-        <meshBasicMaterial color="#ff2222" />
+        <meshBasicMaterial color={cfg.eyeColor} />
       </mesh>
       <mesh position={[0.08, 1.4, 0.22]}>
         <sphereGeometry args={[0.035, 6, 6]} />
-        <meshBasicMaterial color="#ff2222" />
+        <meshBasicMaterial color={cfg.eyeColor} />
       </mesh>
       {/* Reaching arms */}
       <mesh ref={armLRef} position={[-0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
         <boxGeometry args={[0.12, 0.12, 0.55]} />
-        <meshStandardMaterial color="#4c6b3c" />
+        <meshStandardMaterial color={cfg.bodyColor} />
       </mesh>
       <mesh ref={armRRef} position={[0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
         <boxGeometry args={[0.12, 0.12, 0.55]} />
-        <meshStandardMaterial color="#4c6b3c" />
+        <meshStandardMaterial color={cfg.bodyColor} />
       </mesh>
     </group>
   );

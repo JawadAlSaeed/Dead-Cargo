@@ -91,6 +91,26 @@ export function playReloadClick(volume: number) {
   });
 }
 
+export function playMeleeSwing(volume: number) {
+  const context = getCtx();
+  const now = context.currentTime;
+  const noise = context.createBufferSource();
+  noise.buffer = noiseBuffer(context, 0.12);
+  const filter = context.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.Q.setValueAtTime(1.2, now);
+  filter.frequency.setValueAtTime(1800, now);
+  filter.frequency.exponentialRampToValueAtTime(500, now + 0.1);
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(context.destination);
+  noise.start(now);
+  noise.stop(now + 0.13);
+}
+
 export function playFootstep(volume: number) {
   const context = getCtx();
   const now = context.currentTime;

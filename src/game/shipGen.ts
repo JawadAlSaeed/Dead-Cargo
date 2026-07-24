@@ -10,6 +10,7 @@
 
 import { Door, Room, RoomObject, RoomType, Ship, Wall, ZombieSpawn } from "./types";
 import { isPointInRect } from "./collision";
+import { ZOMBIE_KINDS, pickZombieKind } from "./zombieKinds";
 
 const WALL_T = 1; // wall thickness
 const DOOR_W = 3; // gap width in the wall for a door
@@ -308,12 +309,15 @@ function spawnZombies(rooms: Record<string, Room>): ZombieSpawn[] {
         );
         if (!nearDoor) break;
       }
+      const kind = pickZombieKind();
+      const cfg = ZOMBIE_KINDS[kind];
       zombies.push({
         id: `z-${n++}`,
         roomId,
+        kind,
         position: { x, z },
-        speed: rand(1.2, 2.0),
-        hp: 50
+        speed: rand(cfg.speedMin, cfg.speedMax),
+        hp: cfg.hp
       });
     }
   };

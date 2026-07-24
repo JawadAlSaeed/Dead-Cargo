@@ -17,8 +17,11 @@ const PLAYER_SPEED = 4.5;
 const PLAYER_SIZE = 0.7;
 const SHOT_RANGE = 14;
 const SHOT_COOLDOWN_MS = 300;
+const MELEE_RANGE = 2.0;
+const MELEE_COOLDOWN_MS = 420;
 const INTERACT_RANGE = 1.8;
 const MUZZLE_FLASH_MS = 60;
+const SWING_DURATION_MS = 160;
 const FOOTSTEP_INTERVAL_MS = 340;
 
 function currentWeapon() {
@@ -26,26 +29,35 @@ function currentWeapon() {
   return useInventory.getState().items.find((i) => i.id === equippedItemId);
 }
 
-function tryShoot() {
-  const now = performance.now();
-  if (now - world.lastShotAt < SHOT_COOLDOWN_MS) return;
-  world.lastShotAt = now;
-
+function tryAttack() {
   const store = useGameStore.getState();
   if (!store.equippedItemId) {
     store.setMessage("No weapon equipped — open inventory (Tab).");
     return;
   }
   const weapon = currentWeapon();
-  const big = (weapon?.properties.damage ?? 0) >= 50;
-  if (!store.fireShot()) {
-    useAudio.getState().playDryFire();
-    return;
-  }
-  useAudio.getState().playGunshot(big);
-  triggerShake(big ? 0.16 : 0.08, big ? 140 : 90);
+  const isMelee = !!weapon?.properties.melee;
+  const cooldown = isMelee ? MELEE_COOLDOWN_MS : SHOT_COOLDOWN_MS;
+  const now = performance.now();
+  if (now - world.lastShotAt < cooldown) return;
+  world.lastShotAt = now;
 
-  // Hitscan: nearest living zombie close to the aim ray.
+  const big = (weapon?.properties.damage ?? 0) >= 50;
+  if (isMelee) {
+    useAudio.getState().playMeleeSwing();
+    triggerShake(0.06, 80);
+  } else {
+    if (!store.fireShot()) {
+      useAudio.getState().playDryFire();
+      return;
+    }
+    useAudio.getState().playGunshot(big);
+    triggerShake(big ? 0.16 : 0.08, big ? 140 : 90);
+  }
+
+  // Hitscan (or a short-range swing): nearest living zombie close to the aim ray.
+  const range = isMelee ? MELEE_RANGE : SHOT_RANGE;
+  const perpThreshold = isMelee ? 1.1 : 0.75;
   const { player, aim, zombiePos } = world;
   const dirX = aim.x - player.x;
   const dirZ = aim.z - player.z;
@@ -60,9 +72,9 @@ function tryShoot() {
     const relX = pos.x - player.x;
     const relZ = pos.z - player.z;
     const along = relX * nx + relZ * nz; // distance along the aim ray
-    if (along < 0 || along > SHOT_RANGE) continue;
+    if (along < 0 || along > range) continue;
     const perp = Math.abs(relX * nz - relZ * nx); // distance off the ray
-    if (perp > 0.75) continue;
+    if (perp > perpThreshold) continue;
     if (along < bestDist) {
       bestDist = along;
       bestId = id;
@@ -71,7 +83,7 @@ function tryShoot() {
   if (bestId) {
     store.hitZombie(bestId, weapon?.properties.damage ?? 0);
     world.lastHitConfirmedAt = now;
-    triggerShake(big ? 0.22 : 0.12, 130);
+    triggerShake(isMelee ? 0.1 : big ? 0.22 : 0.12, 130);
   }
 }
 
@@ -99,6 +111,7 @@ export function Player({ room }: { room: Room }) {
   const groupRef = useRef<THREE.Group>(null);
   const aimLineRef = useRef<THREE.Mesh>(null);
   const muzzleRef = useRef<THREE.Mesh>(null);
+  const weaponRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
   const legRRef = useRef<THREE.Group>(null);
   const lockedMsgAt = useRef(0);
@@ -125,7 +138,7 @@ export function Player({ room }: { room: Room }) {
       const store = useGameStore.getState();
       if (store.phase !== "playing" || isUiOpen(store)) return;
       if (e.button === 2) world.aiming = true;
-      if (e.button === 0 && world.aiming) tryShoot();
+      if (e.button === 0 && world.aiming) tryAttack();
     };
     const mouseUp = (e: MouseEvent) => {
       if (e.button === 2) world.aiming = false;
@@ -214,11 +227,18 @@ export function Player({ room }: { room: Room }) {
       group.position.set(player.x, 0, player.z);
       group.rotation.y = player.rot;
     }
+    const equipped = currentWeapon();
+    const meleeEquipped = !!equipped?.properties.melee;
+    const sinceAttack = performance.now() - world.lastShotAt;
     if (aimLineRef.current) {
-      aimLineRef.current.visible = world.aiming;
+      aimLineRef.current.visible = world.aiming && !meleeEquipped;
     }
     if (muzzleRef.current) {
-      muzzleRef.current.visible = performance.now() - world.lastShotAt < MUZZLE_FLASH_MS;
+      muzzleRef.current.visible = !meleeEquipped && sinceAttack < MUZZLE_FLASH_MS;
+    }
+    if (weaponRef.current) {
+      const swinging = meleeEquipped && sinceAttack < SWING_DURATION_MS;
+      weaponRef.current.rotation.y = swinging ? Math.sin((sinceAttack / SWING_DURATION_MS) * Math.PI) * -1.3 : 0;
     }
     if (!isMoving) strideRef.current = THREE.MathUtils.lerp(strideRef.current, 0, delta * 8);
     const swing = Math.sin(strideRef.current) * 0.5;
@@ -251,16 +271,18 @@ export function Player({ room }: { room: Room }) {
         <sphereGeometry args={[0.22, 12, 12]} />
         <meshStandardMaterial color="#d9b38c" />
       </mesh>
-      {/* Gun, pointing forward (+z in local space) */}
-      <mesh position={[0.22, 0.95, 0.35]}>
-        <boxGeometry args={[0.12, 0.12, 0.5]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      {/* Muzzle flash, shown for a couple frames on each shot */}
-      <mesh ref={muzzleRef} position={[0.22, 0.95, 0.66]} visible={false}>
-        <coneGeometry args={[0.14, 0.28, 6]} />
-        <meshBasicMaterial color="#ffdc7a" />
-      </mesh>
+      {/* Weapon group, pointing forward (+z); pivots at the grip for the melee swing */}
+      <group ref={weaponRef} position={[0.22, 0.95, 0]}>
+        <mesh position={[0, 0, 0.35]}>
+          <boxGeometry args={[0.12, 0.12, 0.5]} />
+          <meshStandardMaterial color="#222" />
+        </mesh>
+        {/* Muzzle flash, shown for a couple frames on each ranged shot */}
+        <mesh ref={muzzleRef} position={[0, 0, 0.66]} visible={false}>
+          <coneGeometry args={[0.14, 0.28, 6]} />
+          <meshBasicMaterial color="#ffdc7a" />
+        </mesh>
+      </group>
       {/* Aim laser, shown while right mouse is held */}
       <mesh ref={aimLineRef} position={[0.22, 0.95, 0.6 + SHOT_RANGE / 2]} visible={false}>
         <boxGeometry args={[0.03, 0.03, SHOT_RANGE]} />
