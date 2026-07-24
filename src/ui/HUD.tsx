@@ -1,9 +1,46 @@
 // In-game overlay: health, ammo, location, transient messages, control hints.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "../state/useGameStore";
 import { useInventory } from "../state/useInventory";
 import { useAudio } from "../state/useAudio";
+import { world } from "../game/world";
+
+/**
+ * Imperative reticle driven straight from world.ts on a rAF loop — avoids
+ * putting per-frame aim/shot state into React so the HUD doesn't re-render
+ * at 60fps.
+ */
+function Crosshair() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const el = ref.current;
+      if (el) {
+        const now = performance.now();
+        const hitFlash = now - world.lastHitConfirmedAt < 140;
+        const shotFlash = now - world.lastShotAt < 90;
+        el.style.opacity = world.aiming ? "1" : "0";
+        el.style.transform = `translate(-50%, -50%) scale(${shotFlash ? 1.35 : 1})`;
+        el.style.setProperty("--crosshair-color", hitFlash ? "#ff3b3b" : "#f2efe4");
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div ref={ref} className="crosshair" aria-hidden="true">
+      <span />
+      <span />
+      <span />
+      <span />
+    </div>
+  );
+}
 
 export function HUD() {
   const health = useGameStore((s) => s.health);
@@ -35,9 +72,19 @@ export function HUD() {
   const healthColor = healthPct > 60 ? "#3ecf5a" : healthPct > 30 ? "#e0b83a" : "#e04a3a";
   const currentRoom = ship?.rooms[currentRoomId];
   const roomLabel = currentRoom ? `Deck ${currentRoom.floor + 1} — ${currentRoom.label}` : "";
+  const vignetteIntensity = Math.max(0, (50 - healthPct) / 50);
+  const critical = healthPct <= 25;
 
   return (
     <div className="hud">
+      {vignetteIntensity > 0 && (
+        <div
+          className={`vignette ${critical ? "vignette-critical" : ""}`}
+          style={{ opacity: Math.min(0.7, vignetteIntensity) }}
+        />
+      )}
+      <Crosshair />
+
       <div className="hud-top">
         <div className="hud-room">{roomLabel}</div>
         {muted && <div className="hud-muted">MUTED (M)</div>}

@@ -5,23 +5,25 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { world } from "../game/world";
+import { world, triggerShake } from "../game/world";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance, isPointInRect } from "../game/collision";
 import { Room } from "../game/types";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useInventory } from "../state/useInventory";
+import { useAudio } from "../state/useAudio";
 
 const PLAYER_SPEED = 4.5;
 const PLAYER_SIZE = 0.7;
 const SHOT_RANGE = 14;
 const SHOT_COOLDOWN_MS = 300;
 const INTERACT_RANGE = 1.8;
+const MUZZLE_FLASH_MS = 60;
+const FOOTSTEP_INTERVAL_MS = 340;
 
-function currentWeaponDamage(): number {
+function currentWeapon() {
   const { equippedItemId } = useGameStore.getState();
-  const weapon = useInventory.getState().items.find((i) => i.id === equippedItemId);
-  return weapon?.properties.damage ?? 0;
+  return useInventory.getState().items.find((i) => i.id === equippedItemId);
 }
 
 function tryShoot() {
@@ -34,7 +36,14 @@ function tryShoot() {
     store.setMessage("No weapon equipped — open inventory (Tab).");
     return;
   }
-  if (!store.fireShot()) return;
+  const weapon = currentWeapon();
+  const big = (weapon?.properties.damage ?? 0) >= 50;
+  if (!store.fireShot()) {
+    useAudio.getState().playDryFire();
+    return;
+  }
+  useAudio.getState().playGunshot(big);
+  triggerShake(big ? 0.16 : 0.08, big ? 140 : 90);
 
   // Hitscan: nearest living zombie close to the aim ray.
   const { player, aim, zombiePos } = world;
@@ -59,7 +68,11 @@ function tryShoot() {
       bestId = id;
     }
   }
-  if (bestId) store.hitZombie(bestId, currentWeaponDamage());
+  if (bestId) {
+    store.hitZombie(bestId, weapon?.properties.damage ?? 0);
+    world.lastHitConfirmedAt = now;
+    triggerShake(big ? 0.22 : 0.12, 130);
+  }
 }
 
 function tryInteract(room: Room) {
@@ -85,7 +98,12 @@ function tryInteract(room: Room) {
 export function Player({ room }: { room: Room }) {
   const groupRef = useRef<THREE.Group>(null);
   const aimLineRef = useRef<THREE.Mesh>(null);
+  const muzzleRef = useRef<THREE.Mesh>(null);
+  const legLRef = useRef<THREE.Group>(null);
+  const legRRef = useRef<THREE.Group>(null);
   const lockedMsgAt = useRef(0);
+  const lastFootstepAt = useRef(0);
+  const strideRef = useRef(0);
 
   const baseColliders = useMemo(() => roomColliders(room), [room]);
 
@@ -152,11 +170,20 @@ export function Player({ room }: { room: Room }) {
     if (keys["KeyS"] || keys["ArrowDown"]) dz += 1;
     if (keys["KeyA"] || keys["ArrowLeft"]) dx -= 1;
     if (keys["KeyD"] || keys["ArrowRight"]) dx += 1;
-    if (dx !== 0 || dz !== 0) {
+    const isMoving = dx !== 0 || dz !== 0;
+    world.moving = isMoving;
+    if (isMoving) {
       const len = Math.hypot(dx, dz);
       dx = (dx / len) * PLAYER_SPEED * delta;
       dz = (dz / len) * PLAYER_SPEED * delta;
       moveWithCollision(player, dx, dz, PLAYER_SIZE, colliders);
+
+      strideRef.current += delta * 9;
+      const now = performance.now();
+      if (now - lastFootstepAt.current > FOOTSTEP_INTERVAL_MS) {
+        lastFootstepAt.current = now;
+        useAudio.getState().playFootstep();
+      }
     }
 
     // Facing: toward the cursor while aiming, else toward movement.
@@ -190,10 +217,30 @@ export function Player({ room }: { room: Room }) {
     if (aimLineRef.current) {
       aimLineRef.current.visible = world.aiming;
     }
+    if (muzzleRef.current) {
+      muzzleRef.current.visible = performance.now() - world.lastShotAt < MUZZLE_FLASH_MS;
+    }
+    if (!isMoving) strideRef.current = THREE.MathUtils.lerp(strideRef.current, 0, delta * 8);
+    const swing = Math.sin(strideRef.current) * 0.5;
+    if (legLRef.current) legLRef.current.rotation.x = swing;
+    if (legRRef.current) legRRef.current.rotation.x = -swing;
   });
 
   return (
     <group ref={groupRef}>
+      {/* Legs, pivoted at the hip so they swing while walking */}
+      <group ref={legLRef} position={[-0.13, 0.4, 0]}>
+        <mesh position={[0, -0.2, 0]} castShadow>
+          <boxGeometry args={[0.15, 0.4, 0.15]} />
+          <meshStandardMaterial color="#2b3550" />
+        </mesh>
+      </group>
+      <group ref={legRRef} position={[0.13, 0.4, 0]}>
+        <mesh position={[0, -0.2, 0]} castShadow>
+          <boxGeometry args={[0.15, 0.4, 0.15]} />
+          <meshStandardMaterial color="#2b3550" />
+        </mesh>
+      </group>
       {/* Body */}
       <mesh position={[0, 0.75, 0]} castShadow>
         <capsuleGeometry args={[0.32, 0.75, 6, 12]} />
@@ -208,6 +255,11 @@ export function Player({ room }: { room: Room }) {
       <mesh position={[0.22, 0.95, 0.35]}>
         <boxGeometry args={[0.12, 0.12, 0.5]} />
         <meshStandardMaterial color="#222" />
+      </mesh>
+      {/* Muzzle flash, shown for a couple frames on each shot */}
+      <mesh ref={muzzleRef} position={[0.22, 0.95, 0.66]} visible={false}>
+        <coneGeometry args={[0.14, 0.28, 6]} />
+        <meshBasicMaterial color="#ffdc7a" />
       </mesh>
       {/* Aim laser, shown while right mouse is held */}
       <mesh ref={aimLineRef} position={[0.22, 0.95, 0.6 + SHOT_RANGE / 2]} visible={false}>

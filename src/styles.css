@@ -190,6 +190,80 @@
   color: #62666e;
 }
 
+/* ---------- crosshair ---------- */
+
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  opacity: 0;
+  pointer-events: none;
+  --crosshair-color: #f2efe4;
+}
+
+.crosshair span {
+  position: absolute;
+  background: var(--crosshair-color);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.85);
+}
+
+.crosshair span:nth-child(1) {
+  left: 50%;
+  top: 0;
+  width: 2px;
+  height: 7px;
+  transform: translateX(-50%);
+}
+
+.crosshair span:nth-child(2) {
+  left: 50%;
+  bottom: 0;
+  width: 2px;
+  height: 7px;
+  transform: translateX(-50%);
+}
+
+.crosshair span:nth-child(3) {
+  top: 50%;
+  left: 0;
+  height: 2px;
+  width: 7px;
+  transform: translateY(-50%);
+}
+
+.crosshair span:nth-child(4) {
+  top: 50%;
+  right: 0;
+  height: 2px;
+  width: 7px;
+  transform: translateY(-50%);
+}
+
+/* ---------- low-health vignette ---------- */
+
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(140, 10, 10, 0.9) 100%);
+}
+
+.vignette-critical {
+  animation: vignette-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes vignette-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
 /* ---------- inventory ---------- */
 
 .inv-overlay {

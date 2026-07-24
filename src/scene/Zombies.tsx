@@ -10,6 +10,7 @@ import { world } from "../game/world";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance } from "../game/collision";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
+import { useAudio } from "../state/useAudio";
 
 const AGGRO_RANGE = 9;
 const ATTACK_RANGE = 1.1;
@@ -20,9 +21,12 @@ const ZOMBIE_SIZE = 0.7;
 function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const groupRef = useRef<THREE.Group>(null);
   const bodyMat = useRef<THREE.MeshStandardMaterial>(null);
+  const armLRef = useRef<THREE.Mesh>(null);
+  const armRRef = useRef<THREE.Mesh>(null);
   const lastAttackAt = useRef(0);
   const lastHp = useRef(spawn.hp);
   const flashUntil = useRef(0);
+  const wasAggroed = useRef(false);
 
   const alive = useGameStore((s) => s.zombies[spawn.id]?.alive ?? false);
   const colliders = useMemo(() => roomColliders(room), [room]);
@@ -52,6 +56,12 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const { player } = world;
     const dist = getDistance(pos.x, pos.z, player.x, player.z);
 
+    const aggroed = dist < AGGRO_RANGE;
+    if (aggroed && !wasAggroed.current && !isUiOpen(store)) {
+      useAudio.getState().playGrowl();
+    }
+    wasAggroed.current = aggroed;
+
     if (dist < AGGRO_RANGE && dist > ATTACK_RANGE * 0.6 && !isUiOpen(store)) {
       let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
       let dz = ((player.z - pos.z) / dist) * spawn.speed * delta;
@@ -80,6 +90,11 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       // Shamble bob
       group.position.y = Math.abs(Math.sin(performance.now() / 180 + spawn.position.x)) * 0.06;
     }
+    // Twitchy reaching-arm sway, always active for an unsettled, restless feel.
+    const t = performance.now() / 1000;
+    const armSwing = Math.sin(t * 3 + spawn.position.x) * 0.18;
+    if (armLRef.current) armLRef.current.rotation.x = Math.PI / 2.4 + armSwing;
+    if (armRRef.current) armRRef.current.rotation.x = Math.PI / 2.4 - armSwing;
   });
 
   if (!alive) {
@@ -113,11 +128,11 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
         <meshBasicMaterial color="#ff2222" />
       </mesh>
       {/* Reaching arms */}
-      <mesh position={[-0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
+      <mesh ref={armLRef} position={[-0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
         <boxGeometry args={[0.12, 0.12, 0.55]} />
         <meshStandardMaterial color="#4c6b3c" />
       </mesh>
-      <mesh position={[0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
+      <mesh ref={armRRef} position={[0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
         <boxGeometry args={[0.12, 0.12, 0.55]} />
         <meshStandardMaterial color="#4c6b3c" />
       </mesh>
