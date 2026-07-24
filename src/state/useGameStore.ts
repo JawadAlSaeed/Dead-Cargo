@@ -15,7 +15,7 @@ import {
   generateRandomItem
 } from "../game/items";
 import { canPlace, findPlacement } from "../game/grid";
-import { resetWorld, world } from "../game/world";
+import { resetWorld, triggerShake, world } from "../game/world";
 import { InventoryItem, itemFromBlueprint, useInventory } from "./useInventory";
 import { useAudio } from "./useAudio";
 
@@ -164,6 +164,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (phase !== "playing") return;
     const next = Math.max(0, health - amount);
     useAudio.getState().playHit();
+    triggerShake(0.35, 220);
     if (next <= 0) {
       useAudio.getState().stopMusic();
       set({ health: 0, phase: "dead", inventoryOpen: false, lootTarget: null });
@@ -348,6 +349,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     inv.removeItem(box.id);
     set({ ammoLoaded: ammoLoaded + (box.properties.ammoCount ?? 0) });
     setMessage(`Reloaded (+${box.properties.ammoCount}).`);
+    useAudio.getState().playReloadClick();
   },
 
   useItem: (itemId) => {

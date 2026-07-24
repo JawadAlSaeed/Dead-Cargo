@@ -19,6 +19,15 @@ function FollowCamera() {
     target.current.set(player.x, 13, player.z + 7.5);
     camera.position.lerp(target.current, Math.min(1, delta * 5));
     camera.lookAt(player.x, 0, player.z);
+
+    const now = performance.now();
+    if (now < world.shake.until) {
+      const t = (world.shake.until - now) / world.shake.total;
+      const amt = world.shake.magnitude * t;
+      camera.position.x += (Math.random() - 0.5) * amt;
+      camera.position.y += (Math.random() - 0.5) * amt * 0.6;
+      camera.position.z += (Math.random() - 0.5) * amt;
+    }
   });
   return null;
 }
