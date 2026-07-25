@@ -4,8 +4,13 @@
 
 export interface WorldState {
   player: { x: number; z: number; rot: number };
+  // Aim point on the floor plane, derived each frame from mouseScreen.
   aim: { x: number; z: number };
-  aiming: boolean;
+  // Cursor position in CSS pixels — drives both the aim raycast and the
+  // DOM crosshair. Aiming itself is always on; this is not a toggle.
+  mouseScreen: { x: number; y: number };
+  // Right mouse held: shows the laser sight line. Purely an aiming aid.
+  laserSight: boolean;
   moving: boolean;
   keys: Record<string, boolean>;
   // Live zombie positions, keyed by zombie id (only current room's zombies).
@@ -15,10 +20,16 @@ export interface WorldState {
   shake: { until: number; total: number; magnitude: number };
 }
 
+const screenCenter = () => ({
+  x: typeof window === "undefined" ? 0 : window.innerWidth / 2,
+  y: typeof window === "undefined" ? 0 : window.innerHeight / 2
+});
+
 export const world: WorldState = {
   player: { x: 0, z: 0, rot: 0 },
   aim: { x: 0, z: 1 },
-  aiming: false,
+  mouseScreen: screenCenter(),
+  laserSight: false,
   moving: false,
   keys: {},
   zombiePos: new Map(),
@@ -41,7 +52,8 @@ export function resetWorld(startX = 0, startZ = 0) {
   world.player.x = startX;
   world.player.z = startZ;
   world.player.rot = 0;
-  world.aiming = false;
+  world.mouseScreen = screenCenter();
+  world.laserSight = false;
   world.moving = false;
   world.keys = {};
   world.zombiePos.clear();

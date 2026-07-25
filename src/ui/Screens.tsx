@@ -15,7 +15,8 @@ export function MenuScreen() {
         </p>
         <ul className="controls-list">
           <li><b>WASD</b> — move</li>
-          <li><b>Right mouse</b> — aim &nbsp; <b>Left mouse</b> — attack with equipped weapon (while aiming)</li>
+          <li><b>Mouse</b> — aim (you always face the cursor) &nbsp; <b>Left mouse</b> — attack</li>
+          <li><b>Right mouse</b> (hold) — laser sight, for lining up longer shots</li>
           <li><b>F</b> — search containers &amp; use the radio</li>
           <li><b>R</b> — reload &nbsp; <b>Tab</b> — inventory &nbsp; <b>M</b> — mute</li>
           <li>In grids: <b>drag</b> to move, <b>R</b> rotates the held item</li>

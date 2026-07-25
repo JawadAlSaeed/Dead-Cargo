@@ -22,7 +22,7 @@
 
 ### Survival Horror Combat
 - Three zombie types with distinct behavior: the standard Shambler, a fast low-health Runner with a wide detection range, and a slow high-health Brute that hits hard. They chase the player on sight and deal damage on contact.
-- Aim with the right mouse button and attack with the left. Firearms (pistol, shotgun) consume ammo and need reloading (pulls matching ammo from your inventory); the Combat Knife is a silent, close-range melee weapon that needs neither.
+- Aiming is continuous — the courier always faces the cursor — and the left mouse button attacks. Firearms (pistol, shotgun) consume ammo and need reloading (pulls matching ammo from your inventory); the Combat Knife is a silent, close-range melee weapon that needs neither.
 - Screen shake, a muzzle flash, a hit-reactive crosshair, and procedurally synthesized gunfire/melee/footstep/growl sound effects give combat feedback without any external audio assets.
 - Health is tracked on a HUD bar with a low-health vignette; running out ends the run.
 
@@ -38,8 +38,9 @@ These are part of the original vision and not yet built:
 
 ## Controls
 - **WASD** — move
-- **Right mouse** — aim
-- **Left mouse** (while aiming) — attack with the equipped weapon
+- **Mouse** — aim; the courier always faces the cursor
+- **Left mouse** — attack with the equipped weapon
+- **Right mouse** (hold) — laser sight, an optional aid for lining up longer shots
 - **F** — search containers / use the radio
 - **R** — reload (firearms only)
 - **Tab** — open/close inventory

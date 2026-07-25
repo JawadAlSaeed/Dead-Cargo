@@ -1,6 +1,10 @@
-// Player: movement, aiming, shooting, door transitions and interaction.
+// Player: movement, aiming, attacking, door transitions and interaction.
 // Position and rotation live in refs / world state — the store is only touched
 // on discrete events (shots, damage, room changes), never per frame.
+//
+// Aiming is always active: the player faces the cursor, and the aim point is
+// recomputed each frame by raycasting the cursor onto the floor plane. Holding
+// right mouse only adds the laser sight line.
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -23,6 +27,12 @@ const INTERACT_RANGE = 1.8;
 const MUZZLE_FLASH_MS = 60;
 const SWING_DURATION_MS = 160;
 const FOOTSTEP_INTERVAL_MS = 340;
+
+// Reused across frames so aiming allocates nothing per frame.
+const aimRaycaster = new THREE.Raycaster();
+const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const aimNdc = new THREE.Vector2();
+const aimHit = new THREE.Vector3();
 
 function currentWeapon() {
   const { equippedItemId } = useGameStore.getState();
@@ -134,33 +144,52 @@ export function Player({ room }: { room: Room }) {
     const up = (e: KeyboardEvent) => {
       world.keys[e.code] = false;
     };
+    const mouseMove = (e: MouseEvent) => {
+      world.mouseScreen.x = e.clientX;
+      world.mouseScreen.y = e.clientY;
+    };
     const mouseDown = (e: MouseEvent) => {
       const store = useGameStore.getState();
       if (store.phase !== "playing" || isUiOpen(store)) return;
-      if (e.button === 2) world.aiming = true;
-      if (e.button === 0 && world.aiming) tryAttack();
+      if (e.button === 2) world.laserSight = true;
+      if (e.button === 0) tryAttack();
     };
     const mouseUp = (e: MouseEvent) => {
-      if (e.button === 2) world.aiming = false;
+      if (e.button === 2) world.laserSight = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("mousemove", mouseMove);
     window.addEventListener("mousedown", mouseDown);
     window.addEventListener("mouseup", mouseUp);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("mousemove", mouseMove);
       window.removeEventListener("mousedown", mouseDown);
       window.removeEventListener("mouseup", mouseUp);
     };
   }, [room]);
 
-  useFrame((_, rawDelta) => {
+  useFrame((state, rawDelta) => {
     const delta = Math.min(rawDelta, 0.05);
     const store = useGameStore.getState();
     if (store.phase !== "playing" || isUiOpen(store)) return;
 
     const { player, keys, aim } = world;
+
+    // Aim point: unproject the cursor onto the floor plane. Done by raycast
+    // rather than a pointer-event catcher mesh so it stays correct even when
+    // the cursor is off the room's floor.
+    aimNdc.set(
+      (world.mouseScreen.x / state.size.width) * 2 - 1,
+      -(world.mouseScreen.y / state.size.height) * 2 + 1
+    );
+    aimRaycaster.setFromCamera(aimNdc, state.camera);
+    if (aimRaycaster.ray.intersectPlane(floorPlane, aimHit)) {
+      aim.x = aimHit.x;
+      aim.z = aimHit.z;
+    }
 
     // Locked doors are solid until the player carries the right key.
     const hasKeyFor = (keyId?: string) =>
@@ -199,11 +228,12 @@ export function Player({ room }: { room: Room }) {
       }
     }
 
-    // Facing: toward the cursor while aiming, else toward movement.
-    if (world.aiming) {
-      player.rot = Math.atan2(aim.x - player.x, aim.z - player.z);
-    } else if (dx !== 0 || dz !== 0) {
-      player.rot = Math.atan2(dx, dz);
+    // Facing: always toward the cursor. Below a small deadzone the direction is
+    // degenerate (cursor sitting on the player), so hold the previous facing.
+    const aimDx = aim.x - player.x;
+    const aimDz = aim.z - player.z;
+    if (Math.hypot(aimDx, aimDz) > 0.35) {
+      player.rot = Math.atan2(aimDx, aimDz);
     }
 
     // Door transitions (and locked-door feedback).
@@ -231,7 +261,7 @@ export function Player({ room }: { room: Room }) {
     const meleeEquipped = !!equipped?.properties.melee;
     const sinceAttack = performance.now() - world.lastShotAt;
     if (aimLineRef.current) {
-      aimLineRef.current.visible = world.aiming && !meleeEquipped;
+      aimLineRef.current.visible = world.laserSight && !meleeEquipped;
     }
     if (muzzleRef.current) {
       muzzleRef.current.visible = !meleeEquipped && sinceAttack < MUZZLE_FLASH_MS;
