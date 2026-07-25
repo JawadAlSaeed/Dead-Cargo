@@ -22,6 +22,7 @@
 
 ### Survival Horror Combat
 - Three zombie types with distinct behavior: the standard Shambler, a fast low-health Runner with a wide detection range, and a slow high-health Brute that hits hard. They chase the player on sight and deal damage on contact.
+- **You can only see zombies in the wedge you are facing.** The ship itself — layout, furniture, containers — is always visible, so you never get lost or have to hunt for loot in the dark. The undead are the exception: outside a 75° cone in front of the courier they fade out entirely, and since aiming follows the cursor, where you look is a decision with a cost. Looking down the corridor means not looking at the door behind you. Three things keep it fair: anything close enough to touch is felt regardless of facing, anything that hits you (or that you hit) is revealed for a moment, and a zombie that has noticed you shows its eyes in the dark — two pinpricks that tell you something is coming without telling you what.
 - Aiming is continuous — the courier always faces the cursor — and the left mouse button attacks. Firearms (pistol, shotgun) consume ammo and need reloading (pulls matching ammo from your inventory); the Combat Knife is a silent, close-range melee weapon that needs neither.
 - Screen shake, a muzzle flash, a hit-reactive crosshair, and procedurally synthesized gunfire/melee/footstep/growl sound effects give combat feedback without any external audio assets.
 - Health is tracked on a HUD bar with a low-health vignette; running out ends the run.
