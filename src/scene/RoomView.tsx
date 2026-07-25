@@ -5,7 +5,7 @@ import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
-import { Door, Room, RoomObject, Wall } from "../game/types";
+import type { Door, Room, RoomObject, Wall as WallData } from "../game/types";
 import { useGameStore } from "../state/useGameStore";
 
 const WALL_HEIGHT = 2.4;
@@ -50,10 +50,16 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
 
   if (obj.type === "light") {
     return (
-      <mesh position={[obj.position.x, WALL_HEIGHT - 0.4, obj.position.z]}>
-        <boxGeometry args={[obj.size.width, 0.2, obj.size.height]} />
-        <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={1.5} />
-      </mesh>
+      <group position={[obj.position.x, WALL_HEIGHT - 0.4, obj.position.z]}>
+        <mesh>
+          <boxGeometry args={[obj.size.width, 0.2, obj.size.height]} />
+          <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={1.5} />
+        </mesh>
+        {/* The fixture used to be emissive only, so the corridor it is meant to
+            light stayed pitch black. Short range, so it pools under each lamp
+            and leaves dark stretches between them. */}
+        <pointLight intensity={9} distance={9} decay={2} color={obj.color} />
+      </group>
     );
   }
 
@@ -98,8 +104,28 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
   );
 }
 
+/**
+ * A solid wall. The camera always looks from +z, so a full-height wall on the
+ * near side of the room stands directly between the camera and the player and
+ * hides the floor in front of them — worst in the corridors, which are only 7
+ * deep. Near-side walls are drawn as a knee-high sill instead, the usual
+ * cutaway you get in a fixed top-down view: the boundary still reads, but you
+ * can see what you are walking into.
+ */
+function Wall({ wall }: { wall: WallData }) {
+  const runsAlongX = wall.size.width > wall.size.height;
+  const isNearSide = runsAlongX && wall.position.z > 0;
+  const height = isNearSide ? 0.55 : WALL_HEIGHT;
+  return (
+    <mesh position={[wall.position.x, height / 2, wall.position.z]} castShadow>
+      <boxGeometry args={[wall.size.width, height, wall.size.height]} />
+      <meshStandardMaterial color="#3a4048" roughness={0.9} />
+    </mesh>
+  );
+}
+
 /** The hallway's hull wall: tinted glass with a few frame mullions. */
-function WindowWall({ wall }: { wall: Wall }) {
+function WindowWall({ wall }: { wall: WallData }) {
   const mullionCount = Math.max(1, Math.floor(wall.size.width / 5));
   return (
     <group position={[wall.position.x, WALL_HEIGHT / 2, wall.position.z]}>
@@ -132,25 +158,30 @@ function WindowWall({ wall }: { wall: Wall }) {
 }
 
 /** Dark water visible through the hallway's windows, fading into the fog. */
-function OceanBackdrop({ wall }: { wall: Wall }) {
+function OceanBackdrop({ wall }: { wall: WallData }) {
   const matRef = useRef<THREE.MeshStandardMaterial>(null);
   useFrame(() => {
     if (matRef.current) {
-      matRef.current.emissiveIntensity = 0.07 + Math.sin(performance.now() / 1400) * 0.03;
+      matRef.current.emissiveIntensity = 0.14 + Math.sin(performance.now() / 1400) * 0.04;
     }
   });
-  const outerZ = wall.position.z + wall.size.height / 2;
+  // Extend away from the ship, whichever side of the corridor the hull is on.
+  const outward = Math.sign(wall.position.z) || -1;
+  const outerZ = wall.position.z + (outward * wall.size.height) / 2;
   return (
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
-      position={[wall.position.x, -1.1, outerZ + OCEAN_DEPTH / 2]}
+      position={[wall.position.x, -1.1, outerZ + (outward * OCEAN_DEPTH) / 2]}
     >
       <planeGeometry args={[wall.size.width + 30, OCEAN_DEPTH]} />
+      {/* Just bright enough to separate from the night sky, and no brighter —
+          the lit corridor has to stay the brightest thing on screen or the eye
+          goes straight to the window instead of to what is chasing you. */}
       <meshStandardMaterial
         ref={matRef}
-        color="#0b2e3a"
-        emissive="#0b2e3a"
-        emissiveIntensity={0.07}
+        color="#08222c"
+        emissive="#0d3646"
+        emissiveIntensity={0.14}
         roughness={0.25}
         metalness={0.4}
       />
@@ -208,14 +239,7 @@ export function RoomView({ room }: { room: Room }) {
             <WindowWall wall={wall} />
           </group>
         ) : (
-          <mesh
-            key={`${room.id}-wall-${i}`}
-            position={[wall.position.x, WALL_HEIGHT / 2, wall.position.z]}
-            castShadow
-          >
-            <boxGeometry args={[wall.size.width, WALL_HEIGHT, wall.size.height]} />
-            <meshStandardMaterial color="#3a4048" roughness={0.9} />
-          </mesh>
+          <Wall key={`${room.id}-wall-${i}`} wall={wall} />
         )
       )}
 

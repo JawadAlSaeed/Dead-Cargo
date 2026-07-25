@@ -12,6 +12,7 @@ import { world, triggerShake } from "../game/world";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance, isPointInRect } from "../game/collision";
 import { Room } from "../game/types";
+import { CONE_LIGHT_ANGLE } from "../game/vision";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useInventory } from "../state/useInventory";
 import { useAudio } from "../state/useAudio";
@@ -122,6 +123,8 @@ export function Player({ room }: { room: Room }) {
   const weaponRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
   const legRRef = useRef<THREE.Group>(null);
+  const coneRef = useRef<THREE.SpotLight>(null);
+  const coneTargetRef = useRef<THREE.Object3D>(null);
   const lockedMsgAt = useRef(0);
   const lastFootstepAt = useRef(0);
   const strideRef = useRef(0);
@@ -249,6 +252,12 @@ export function Player({ room }: { room: Room }) {
       group.position.set(player.x, 0, player.z);
       group.rotation.y = player.rot;
     }
+    // A spotlight aims at its target object, which three.js does not parent for
+    // us. Both live inside the player group, so pointing one at the other makes
+    // the cone follow the courier's facing for free.
+    if (coneRef.current && coneTargetRef.current && coneRef.current.target !== coneTargetRef.current) {
+      coneRef.current.target = coneTargetRef.current;
+    }
     const equipped = currentWeapon();
     const meleeEquipped = !!equipped?.properties.melee;
     const sinceAttack = performance.now() - world.lastShotAt;
@@ -302,8 +311,25 @@ export function Player({ room }: { room: Room }) {
           <meshBasicMaterial color="#ffdc7a" />
         </mesh>
       </group>
-      {/* Personal light — the ship is dark */}
-      <pointLight position={[0, 2.2, 0]} intensity={18} distance={11} color="#ffe8c0" />
+      {/* Personal light — the ship is dark. Kept well above head height: at
+          2.2 it sat less than a unit over the head sphere and blew it out to
+          pure white, so the courier read as a lightbulb rather than a person.
+          Dimmer than it would otherwise be, so the view cone reads against it. */}
+      <pointLight position={[0, 3.6, 0]} intensity={24} distance={12} color="#ffe8c0" />
+      {/* The view cone, cast forward along the courier's facing. Without it the
+          rule that zombies are only visible ahead of you would be invisible
+          itself, and a rule you cannot see reads as a glitch. */}
+      <spotLight
+        ref={coneRef}
+        position={[0, 2.4, 0]}
+        angle={CONE_LIGHT_ANGLE}
+        penumbra={0.55}
+        intensity={34}
+        distance={17}
+        decay={1.4}
+        color="#ffeccd"
+      />
+      <object3D ref={coneTargetRef} position={[0, -0.6, 7]} />
     </group>
   );
 }

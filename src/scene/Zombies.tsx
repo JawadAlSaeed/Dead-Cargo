@@ -13,6 +13,26 @@ import { getDistance } from "../game/collision";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useAudio } from "../state/useAudio";
 import { ZOMBIE_KINDS, ZOMBIE_SIZE } from "../game/zombieKinds";
+import { CONTACT_REVEAL_MS, zombieVisibility } from "../game/vision";
+
+/**
+ * Fade every material under a group, and skip drawing it once fully hidden.
+ *
+ * `transparent` is pinned on rather than derived from the opacity: three.js
+ * bakes it into the shader program key, so flipping it would recompile the
+ * material every time a zombie crossed the edge of the cone.
+ */
+function applyOpacity(group: THREE.Object3D | null, opacity: number) {
+  if (!group) return;
+  group.visible = opacity > 0.01;
+  if (!group.visible) return;
+  group.traverse((obj) => {
+    const mat = (obj as THREE.Mesh).material as THREE.Material | undefined;
+    if (!mat) return;
+    mat.transparent = true;
+    mat.opacity = opacity;
+  });
+}
 
 function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const cfg = ZOMBIE_KINDS[spawn.kind];
@@ -24,6 +44,9 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const lastHp = useRef(spawn.hp);
   const flashUntil = useRef(0);
   const wasAggroed = useRef(false);
+  // Contact — either direction — reveals it briefly, so nothing is ever hitting
+  // you from a place you cannot see.
+  const revealedUntil = useRef(0);
 
   const alive = useGameStore((s) => s.zombies[spawn.id]?.alive ?? false);
   const colliders = useMemo(() => roomColliders(room), [room]);
@@ -44,6 +67,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     // Hit flash: detect hp drops without subscribing per frame.
     if (live.hp < lastHp.current) {
       flashUntil.current = performance.now() + 120;
+      revealedUntil.current = performance.now() + CONTACT_REVEAL_MS;
       lastHp.current = live.hp;
     }
     if (bodyMat.current) {
@@ -81,8 +105,15 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       performance.now() - lastAttackAt.current > cfg.attackCooldownMs
     ) {
       lastAttackAt.current = performance.now();
+      revealedUntil.current = performance.now() + CONTACT_REVEAL_MS;
       store.damagePlayer(cfg.damage);
     }
+
+    // Visibility last, so it accounts for everything that happened this frame.
+    applyOpacity(
+      groupRef.current,
+      zombieVisibility(player, pos, dist, revealedUntil.current, performance.now())
+    );
 
     const group = groupRef.current;
     if (group) {
