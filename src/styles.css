@@ -247,6 +247,34 @@
   transform: translateY(-50%);
 }
 
+/* ---------- directional damage arc ---------- */
+
+/* Rotates about screen centre; the span rides at the top of that circle, so
+   rotating the parent swings it round to point at whatever hit you. */
+.damage-arc {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 90ms linear;
+}
+
+.damage-arc span {
+  position: absolute;
+  left: 50%;
+  top: 4vh;
+  width: 26vw;
+  height: 34px;
+  transform: translateX(-50%);
+  border-radius: 50% / 100% 100% 0 0;
+  background: radial-gradient(
+    ellipse at 50% 100%,
+    rgba(255, 40, 40, 0.85) 0%,
+    rgba(255, 40, 40, 0.35) 45%,
+    transparent 75%
+  );
+}
+
 /* ---------- low-health vignette ---------- */
 
 .vignette {

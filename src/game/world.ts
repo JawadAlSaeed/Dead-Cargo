@@ -15,6 +15,11 @@ export interface WorldState {
   zombiePos: Map<string, { x: number; z: number }>;
   lastShotAt: number;
   lastHitConfirmedAt: number;
+  // Where the last hit on the player came from, as a world bearing in the same
+  // atan2(dx, dz) convention as player.rot. Drives the HUD's damage arc — with
+  // zombies invisible outside the view cone, a hit otherwise arrives from
+  // nowhere and there is no way to learn which way to turn.
+  lastHit: { angle: number; at: number };
   shake: { until: number; total: number; magnitude: number };
 }
 
@@ -32,6 +37,7 @@ export const world: WorldState = {
   zombiePos: new Map(),
   lastShotAt: 0,
   lastHitConfirmedAt: 0,
+  lastHit: { angle: 0, at: 0 },
   shake: { until: 0, total: 1, magnitude: 0 }
 };
 
@@ -55,5 +61,6 @@ export function resetWorld(startX = 0, startZ = 0) {
   world.zombiePos.clear();
   world.lastShotAt = 0;
   world.lastHitConfirmedAt = 0;
+  world.lastHit = { angle: 0, at: 0 };
   world.shake = { until: 0, total: 1, magnitude: 0 };
 }

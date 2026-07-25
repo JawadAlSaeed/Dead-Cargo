@@ -11,7 +11,8 @@ interface AudioState {
   playMeleeSwing: () => void;
   playReloadClick: () => void;
   playFootstep: () => void;
-  playGrowl: () => void;
+  /** `pan` is -1 (hard left) to 1 (hard right), relative to the courier. */
+  playGrowl: (volume?: number, pan?: number) => void;
   startMusic: () => void;
   stopMusic: () => void;
 }
@@ -54,8 +55,8 @@ export const useAudio = create<AudioState>((set, get) => ({
   playFootstep: () => {
     if (!get().muted) sfx.playFootstep(0.18);
   },
-  playGrowl: () => {
-    if (!get().muted) sfx.playGrowl(0.3);
+  playGrowl: (volume = 0.3, pan = 0) => {
+    if (!get().muted) sfx.playGrowl(volume, pan);
   },
   startMusic: () => {
     sfx.unlockAudio();
