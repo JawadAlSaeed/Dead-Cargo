@@ -20,6 +20,9 @@ const HALLWAY_DEPTH = 7;
 // reserved for the stairwell connecting the two decks.
 const ROOM_SLOT_X = [-13.5, -4.5, 4.5];
 const STAIRS_SLOT_X = 13.5;
+// Where you land in a corridor after coming through a door. The doorways are
+// on the corridor's near wall (+z), so this sits just inside it.
+const HALL_ENTRY_Z = HALLWAY_DEPTH / 2 - 2.5;
 
 interface RoomSpec {
   id: string;
@@ -156,7 +159,7 @@ function buildRoom(spec: RoomSpec, hallX: number, hallwayId: string, floor: numb
       position: { x: 0, z: doorWallZ },
       size: { width: DOOR_W, height: 1.6 },
       targetRoomId: hallwayId,
-      targetPosition: { x: hallX, z: -1.0 },
+      targetPosition: { x: hallX, z: HALL_ENTRY_Z },
       locked: false
     }
   ];
@@ -235,23 +238,28 @@ function buildHallway(
   const w = HALLWAY_LEN;
   const h = HALLWAY_DEPTH;
   const roomGaps = roomAssignments.map((a) => a.hallX);
-  const northGaps = [...roomGaps, STAIRS_SLOT_X];
+  const doorGaps = [...roomGaps, STAIRS_SLOT_X];
 
-  // South wall is the ship's hull: no doors, just windows onto open water.
-  const hullWall: Wall[] = wallSegments(true, h / 2 - WALL_T / 2, -w / 2, w / 2, []).map(
+  // The hull is the FAR wall (-z): no doors, just windows onto open water.
+  // It has to be the far one to be worth rendering at all — the camera sits
+  // at player.z + 7.5 looking back toward -z, so anything past the near wall
+  // is behind it. With the hull on the near side the ocean was 30-odd units
+  // behind the camera and could never be seen.
+  const hullWall: Wall[] = wallSegments(true, -h / 2 + WALL_T / 2, -w / 2, w / 2, []).map(
     (wall) => ({ ...wall, isWindow: true })
   );
 
   const walls: Wall[] = [
-    ...wallSegments(true, -h / 2 + WALL_T / 2, -w / 2, w / 2, northGaps),
     ...hullWall,
+    // Near wall carries the doorways into the rooms and the stairwell.
+    ...wallSegments(true, h / 2 - WALL_T / 2, -w / 2, w / 2, doorGaps),
     ...wallSegments(false, -w / 2 + WALL_T / 2, -h / 2, h / 2, []),
     ...wallSegments(false, w / 2 - WALL_T / 2, -h / 2, h / 2, [])
   ];
 
   const roomDoors: Door[] = roomAssignments.map((a) => ({
     id: `hall-door-${a.spec.id}`,
-    position: { x: a.hallX, z: -h / 2 + WALL_T / 2 },
+    position: { x: a.hallX, z: h / 2 - WALL_T / 2 },
     size: { width: DOOR_W, height: 1.6 },
     targetRoomId: a.spec.id,
     targetPosition: { x: 0, z: a.spec.h / 2 - 3 },
@@ -261,10 +269,10 @@ function buildHallway(
 
   const stairsDoor: Door = {
     id: `${hallwayId}-stairs`,
-    position: { x: STAIRS_SLOT_X, z: -h / 2 + WALL_T / 2 },
+    position: { x: STAIRS_SLOT_X, z: h / 2 - WALL_T / 2 },
     size: { width: DOOR_W, height: 1.6 },
     targetRoomId: stairsTarget.hallwayId,
-    targetPosition: { x: stairsTarget.hallX, z: -1.0 },
+    targetPosition: { x: stairsTarget.hallX, z: HALL_ENTRY_Z },
     locked: false,
     kind: "stairs"
   };
