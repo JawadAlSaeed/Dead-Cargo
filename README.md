@@ -40,7 +40,6 @@ These are part of the original vision and not yet built:
 - **WASD** — move
 - **Mouse** — aim; the courier always faces the cursor
 - **Left mouse** — attack with the equipped weapon
-- **Right mouse** (hold) — laser sight, an optional aid for lining up longer shots
 - **F** — search containers / use the radio
 - **R** — reload (firearms only)
 - **Tab** — open/close inventory

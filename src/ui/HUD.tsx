@@ -25,7 +25,7 @@ function Crosshair() {
         const shotFlash = now - world.lastShotAt < 90;
         const hidden = isUiOpen(useGameStore.getState());
         const { x, y } = world.mouseScreen;
-        el.style.opacity = hidden ? "0" : world.laserSight ? "1" : "0.8";
+        el.style.opacity = hidden ? "0" : "0.8";
         el.style.transform =
           `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${shotFlash ? 1.35 : 1})`;
         el.style.setProperty("--crosshair-color", hitFlash ? "#ff3b3b" : "#f2efe4");
@@ -113,7 +113,7 @@ export function HUD() {
           </div>
         </div>
         <div className="hud-hints">
-          WASD move · LMB attack · RMB laser sight · F search · R reload · Tab inventory
+          WASD move · LMB attack · F search · R reload · Tab inventory
         </div>
       </div>
     </div>

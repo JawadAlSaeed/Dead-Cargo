@@ -31,6 +31,8 @@ export default function App() {
       }
       if (e.code === "KeyM") useAudio.getState().toggleMuted();
     };
+    // Right mouse is unbound, but the browser menu popping over the game still
+    // breaks play — suppress it.
     const noContextMenu = (e: MouseEvent) => e.preventDefault();
     window.addEventListener("keydown", onKey);
     window.addEventListener("contextmenu", noContextMenu);

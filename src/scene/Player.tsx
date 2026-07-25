@@ -3,8 +3,7 @@
 // on discrete events (shots, damage, room changes), never per frame.
 //
 // Aiming is always active: the player faces the cursor, and the aim point is
-// recomputed each frame by raycasting the cursor onto the floor plane. Holding
-// right mouse only adds the laser sight line.
+// recomputed each frame by raycasting the cursor onto the floor plane.
 
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
@@ -119,7 +118,6 @@ function tryInteract(room: Room) {
 
 export function Player({ room }: { room: Room }) {
   const groupRef = useRef<THREE.Group>(null);
-  const aimLineRef = useRef<THREE.Mesh>(null);
   const muzzleRef = useRef<THREE.Mesh>(null);
   const weaponRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
@@ -151,23 +149,17 @@ export function Player({ room }: { room: Room }) {
     const mouseDown = (e: MouseEvent) => {
       const store = useGameStore.getState();
       if (store.phase !== "playing" || isUiOpen(store)) return;
-      if (e.button === 2) world.laserSight = true;
       if (e.button === 0) tryAttack();
-    };
-    const mouseUp = (e: MouseEvent) => {
-      if (e.button === 2) world.laserSight = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
     window.addEventListener("mousemove", mouseMove);
     window.addEventListener("mousedown", mouseDown);
-    window.addEventListener("mouseup", mouseUp);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       window.removeEventListener("mousemove", mouseMove);
       window.removeEventListener("mousedown", mouseDown);
-      window.removeEventListener("mouseup", mouseUp);
     };
   }, [room]);
 
@@ -260,9 +252,6 @@ export function Player({ room }: { room: Room }) {
     const equipped = currentWeapon();
     const meleeEquipped = !!equipped?.properties.melee;
     const sinceAttack = performance.now() - world.lastShotAt;
-    if (aimLineRef.current) {
-      aimLineRef.current.visible = world.laserSight && !meleeEquipped;
-    }
     if (muzzleRef.current) {
       muzzleRef.current.visible = !meleeEquipped && sinceAttack < MUZZLE_FLASH_MS;
     }
@@ -313,11 +302,6 @@ export function Player({ room }: { room: Room }) {
           <meshBasicMaterial color="#ffdc7a" />
         </mesh>
       </group>
-      {/* Aim laser, shown while right mouse is held */}
-      <mesh ref={aimLineRef} position={[0.22, 0.95, 0.6 + SHOT_RANGE / 2]} visible={false}>
-        <boxGeometry args={[0.03, 0.03, SHOT_RANGE]} />
-        <meshBasicMaterial color="#ff3030" transparent opacity={0.6} />
-      </mesh>
       {/* Personal light — the ship is dark */}
       <pointLight position={[0, 2.2, 0]} intensity={18} distance={11} color="#ffe8c0" />
     </group>
