@@ -18,6 +18,8 @@ export interface ItemBlueprint {
     keyId?: string;
     // Grid expansion granted when used: columns / rows.
     expand?: { w: number; h: number };
+    // No ammoType, no reload — a short-range weapon swung on the same attack input.
+    melee?: boolean;
   };
 }
 
@@ -55,6 +57,16 @@ export const WEAPON_TYPES: Record<string, ItemBlueprint> = {
       { x: 0, y: 1 }
     ],
     properties: { damage: 75, ammoType: "shotgun" }
+  }
+};
+
+export const MELEE_TYPES: Record<string, ItemBlueprint> = {
+  KNIFE: {
+    name: "Combat Knife",
+    type: "weapon",
+    // A thin blade shape — distinct from the firearms' L footprints.
+    shape: cellRect(1, 2),
+    properties: { damage: 35, melee: true }
   }
 };
 
@@ -120,6 +132,7 @@ export function generateRandomItem(): ItemBlueprint {
   const roll = Math.random();
   if (roll < 0.35) return pickRandom(AMMO_TYPES);
   if (roll < 0.72) return pickRandom(HEALING_TYPES);
-  if (roll < 0.9) return pickRandom(WEAPON_TYPES);
+  if (roll < 0.85) return pickRandom(WEAPON_TYPES);
+  if (roll < 0.93) return MELEE_TYPES.KNIFE;
   return Math.random() < 0.6 ? UPGRADE_TYPES.POUCH : UPGRADE_TYPES.BACKPACK;
 }

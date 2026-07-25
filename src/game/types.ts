@@ -55,9 +55,12 @@ export interface Room {
   objects: RoomObject[];
 }
 
+export type ZombieKind = "shambler" | "runner" | "brute";
+
 export interface ZombieSpawn {
   id: string;
   roomId: string;
+  kind: ZombieKind;
   position: { x: number; z: number };
   speed: number;
   hp: number;

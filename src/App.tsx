@@ -12,6 +12,9 @@ import "./styles.css";
 export default function App() {
   const phase = useGameStore((s) => s.phase);
   const inventoryOpen = useGameStore((s) => s.inventoryOpen);
+  const lootTarget = useGameStore((s) => s.lootTarget);
+  // The crosshair replaces the pointer during play; showing both looks broken.
+  const hideCursor = phase === "playing" && !inventoryOpen && !lootTarget;
 
   // App-level keys: Tab toggles inventory, F/Esc close the loot window, M mutes.
   useEffect(() => {
@@ -28,6 +31,8 @@ export default function App() {
       }
       if (e.code === "KeyM") useAudio.getState().toggleMuted();
     };
+    // Right mouse is unbound, but the browser menu popping over the game still
+    // breaks play — suppress it.
     const noContextMenu = (e: MouseEvent) => e.preventDefault();
     window.addEventListener("keydown", onKey);
     window.addEventListener("contextmenu", noContextMenu);
@@ -38,7 +43,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="app">
+    <div className={hideCursor ? "app app-no-cursor" : "app"}>
       {phase === "menu" && <MenuScreen />}
       {phase === "dead" && <DeadScreen />}
       {phase === "won" && <WonScreen />}

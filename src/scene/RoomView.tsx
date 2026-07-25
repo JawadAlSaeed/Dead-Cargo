@@ -7,7 +7,6 @@ import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import { Door, Room, RoomObject, Wall } from "../game/types";
 import { useGameStore } from "../state/useGameStore";
-import { world } from "../game/world";
 
 const WALL_HEIGHT = 2.4;
 const OCEAN_DEPTH = 70;
@@ -36,26 +35,13 @@ function Floor({ room }: { room: Room }) {
     return t;
   }, [texture, room.id]);
 
+  // Aim tracking is handled by a raycast in Player.tsx, so the floor needs no
+  // pointer-event catcher mesh.
   return (
-    <>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[room.size.width, room.size.height]} />
-        <meshStandardMaterial map={configured} color="#7d7d85" />
-      </mesh>
-      {/* Oversized invisible plane so mouse aim keeps tracking beyond the floor edge */}
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.01, 0]}
-        onPointerMove={(e) => {
-          world.aim.x = e.point.x;
-          world.aim.z = e.point.z;
-        }}
-        visible={false}
-      >
-        <planeGeometry args={[room.size.width + 20, room.size.height + 20]} />
-        <meshBasicMaterial />
-      </mesh>
-    </>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+      <planeGeometry args={[room.size.width, room.size.height]} />
+      <meshStandardMaterial map={configured} color="#7d7d85" />
+    </mesh>
   );
 }
 

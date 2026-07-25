@@ -1,15 +1,16 @@
 // In-game overlay: health, ammo, location, transient messages, control hints.
 
 import { useEffect, useRef, useState } from "react";
-import { useGameStore } from "../state/useGameStore";
+import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useInventory } from "../state/useInventory";
 import { useAudio } from "../state/useAudio";
 import { world } from "../game/world";
 
 /**
- * Imperative reticle driven straight from world.ts on a rAF loop — avoids
- * putting per-frame aim/shot state into React so the HUD doesn't re-render
- * at 60fps.
+ * Reticle that tracks the cursor, driven straight from world.ts on a rAF loop
+ * — avoids putting per-frame pointer/shot state into React so the HUD doesn't
+ * re-render at 60fps. Aiming is always on, so this is always visible during
+ * play; it only hides while an inventory/loot panel is up.
  */
 function Crosshair() {
   const ref = useRef<HTMLDivElement>(null);
@@ -22,8 +23,11 @@ function Crosshair() {
         const now = performance.now();
         const hitFlash = now - world.lastHitConfirmedAt < 140;
         const shotFlash = now - world.lastShotAt < 90;
-        el.style.opacity = world.aiming ? "1" : "0";
-        el.style.transform = `translate(-50%, -50%) scale(${shotFlash ? 1.35 : 1})`;
+        const hidden = isUiOpen(useGameStore.getState());
+        const { x, y } = world.mouseScreen;
+        el.style.opacity = hidden ? "0" : "0.8";
+        el.style.transform =
+          `translate(${x}px, ${y}px) translate(-50%, -50%) scale(${shotFlash ? 1.35 : 1})`;
         el.style.setProperty("--crosshair-color", hitFlash ? "#ff3b3b" : "#f2efe4");
       }
       raf = requestAnimationFrame(tick);
@@ -105,11 +109,11 @@ export function HUD() {
         <div className="hud-ammo">
           <div className="hud-label">{weapon ? weapon.name.toUpperCase() : "UNARMED"}</div>
           <div className="hud-ammo-count">
-            {weapon ? `${ammoLoaded} / ${ammoReserve}` : "—"}
+            {!weapon ? "—" : weapon.properties.melee ? "MELEE" : `${ammoLoaded} / ${ammoReserve}`}
           </div>
         </div>
         <div className="hud-hints">
-          WASD move · RMB aim · LMB shoot · F search · R reload · Tab inventory
+          WASD move · LMB attack · F search · R reload · Tab inventory
         </div>
       </div>
     </div>

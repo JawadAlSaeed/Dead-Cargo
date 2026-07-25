@@ -4,6 +4,11 @@
   position: relative;
 }
 
+.app-no-cursor,
+.app-no-cursor * {
+  cursor: none;
+}
+
 /* ---------- full-screen states ---------- */
 
 .screen {
@@ -192,10 +197,11 @@
 
 /* ---------- crosshair ---------- */
 
+/* Positioned at the origin and moved to the cursor via transform each frame. */
 .crosshair {
-  position: absolute;
-  left: 50%;
-  top: 50%;
+  position: fixed;
+  left: 0;
+  top: 0;
   width: 22px;
   height: 22px;
   opacity: 0;

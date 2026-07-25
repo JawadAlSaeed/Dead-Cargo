@@ -340,6 +340,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       setMessage("No weapon equipped.");
       return;
     }
+    if (weapon.properties.melee) {
+      setMessage("The knife doesn't need reloading.");
+      return;
+    }
     const ammoType = weapon.properties.ammoType;
     const box = inv.items.find((i) => i.type === "ammo" && i.properties.ammoType === ammoType);
     if (!box) {
@@ -376,7 +380,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           return;
         }
         set({ equippedItemId: itemId, ammoLoaded: 0 });
-        setMessage(`Equipped ${item.name} — press R to load it.`);
+        setMessage(
+          item.properties.melee ? `${item.name} equipped.` : `Equipped ${item.name} — press R to load it.`
+        );
         break;
       }
       case "upgrade": {
