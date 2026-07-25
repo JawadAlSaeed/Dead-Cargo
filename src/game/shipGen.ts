@@ -10,7 +10,7 @@
 
 import { Door, Room, RoomObject, RoomType, Ship, Wall, ZombieSpawn } from "./types";
 import { isPointInRect } from "./collision";
-import { ZOMBIE_KINDS, pickZombieKind } from "./zombieKinds";
+import { ZOMBIE_KINDS, ZOMBIE_SIZE, pickZombieKind } from "./zombieKinds";
 
 const WALL_T = 1; // wall thickness
 const DOOR_W = 3; // gap width in the wall for a door
@@ -94,29 +94,43 @@ function wallSegments(
   return walls;
 }
 
-/** Random object position inside the room that avoids walls, the door path and other objects. */
+/**
+ * Random object position inside the room that avoids walls, the door path and
+ * other objects. Tries a generous spacing first, then a tighter one before
+ * giving up — a crowded room (the captain's cabin, where the desk eats a chunk
+ * of the floor) should still fill rather than pile objects on one spot.
+ * Returns null when there is genuinely nowhere to put it; the caller skips the
+ * object, which beats dropping it in the middle of the room.
+ */
 function placeObject(
   w: number,
   h: number,
   size: { width: number; height: number },
   existing: RoomObject[],
   doorZSign: number
-): { x: number; z: number } {
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const x = rand(-w / 2 + 2.2, w / 2 - 2.2);
-    const z = rand(-h / 2 + 2.2, h / 2 - 2.2);
-    // Keep the strip in front of the door clear so loot can't block the entrance.
-    if (Math.abs(x) < 2.2 && z * doorZSign > 0) continue;
-    // Keep the room center clear — it's the player start / a walk-through hub.
-    if (Math.hypot(x, z) < 2.4) continue;
-    const overlaps = existing.some(
-      (o) =>
-        Math.abs(o.position.x - x) < (o.size.width + size.width) / 2 + 0.6 &&
-        Math.abs(o.position.z - z) < (o.size.height + size.height) / 2 + 0.6
-    );
-    if (!overlaps) return { x, z };
+): { x: number; z: number } | null {
+  // [spacing between objects, radius of the clear zone at room center]
+  const passes = [
+    [0.6, 2.4],
+    [0.15, 1.8]
+  ];
+  for (const [gap, centerClear] of passes) {
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const x = rand(-w / 2 + 2.2, w / 2 - 2.2);
+      const z = rand(-h / 2 + 2.2, h / 2 - 2.2);
+      // Keep the strip in front of the door clear so loot can't block the entrance.
+      if (Math.abs(x) < 2.2 && z * doorZSign > 0) continue;
+      // Keep the room center clear — it's the player start / a walk-through hub.
+      if (Math.hypot(x, z) < centerClear) continue;
+      const overlaps = existing.some(
+        (o) =>
+          Math.abs(o.position.x - x) < (o.size.width + size.width) / 2 + gap &&
+          Math.abs(o.position.z - z) < (o.size.height + size.height) / 2 + gap
+      );
+      if (!overlaps) return { x, z };
+    }
   }
-  return { x: 0, z: 0 };
+  return null;
 }
 
 function buildRoom(spec: RoomSpec, hallX: number, hallwayId: string, floor: number): Room {
@@ -148,25 +162,9 @@ function buildRoom(spec: RoomSpec, hallX: number, hallwayId: string, floor: numb
   ];
 
   const objects: RoomObject[] = [];
-  let objIndex = 0;
-  const add = (kind: "searchable" | "decor") => {
-    const style = OBJECT_STYLES[kind];
-    const size = { width: rand(1, 1.8), height: rand(1, 1.8) };
-    const position = placeObject(w, h, size, objects, doorZSign);
-    objects.push({
-      id: `${spec.id}-obj-${objIndex++}`,
-      type: pick(style.types),
-      position,
-      size,
-      collidable: true,
-      color: pick(style.colors),
-      interactable: kind === "searchable",
-      containsItem: kind === "searchable"
-    });
-  };
-  for (let i = 0; i < spec.searchables; i++) add("searchable");
-  for (let i = 0; i < spec.decor; i++) add("decor");
 
+  // Fixed furniture goes in before the random loot/decor, so the random
+  // placement pass treats it as an obstacle instead of clipping through it.
   if (spec.type === "captainCabin") {
     // The radio on the captain's desk is the escape objective.
     objects.push({
@@ -190,6 +188,26 @@ function buildRoom(spec: RoomSpec, hallX: number, hallwayId: string, floor: numb
       containsItem: false
     });
   }
+
+  let objIndex = 0;
+  const add = (kind: "searchable" | "decor") => {
+    const style = OBJECT_STYLES[kind];
+    const size = { width: rand(1, 1.8), height: rand(1, 1.8) };
+    const position = placeObject(w, h, size, objects, doorZSign);
+    if (!position) return;
+    objects.push({
+      id: `${spec.id}-obj-${objIndex++}`,
+      type: pick(style.types),
+      position,
+      size,
+      collidable: true,
+      color: pick(style.colors),
+      interactable: kind === "searchable",
+      containsItem: kind === "searchable"
+    });
+  };
+  for (let i = 0; i < spec.searchables; i++) add("searchable");
+  for (let i = 0; i < spec.decor; i++) add("decor");
 
   return {
     id: spec.id,
@@ -307,7 +325,16 @@ function spawnZombies(rooms: Record<string, Room>): ZombieSpawn[] {
         const nearDoor = room.doors.some((d) =>
           isPointInRect(x, z, d.targetPosition.x, d.targetPosition.z, 6, 6)
         );
-        if (!nearDoor) break;
+        if (nearDoor) continue;
+        // Not inside a crate or table — movement lets them walk back out, but
+        // until they move they read as clipping through the furniture.
+        const insideObject = room.objects.some(
+          (o) =>
+            o.collidable &&
+            Math.abs(o.position.x - x) < (o.size.width + ZOMBIE_SIZE) / 2 &&
+            Math.abs(o.position.z - z) < (o.size.height + ZOMBIE_SIZE) / 2
+        );
+        if (!insideObject) break;
       }
       const kind = pickZombieKind();
       const cfg = ZOMBIE_KINDS[kind];
@@ -353,13 +380,20 @@ export function generateShip(): Ship {
   // Guarantee the Captain's Key in one searchable container in a mid-ship room,
   // and a Backpack upgrade somewhere in the cargo hold — both exist on whichever
   // deck they landed on this run.
-  const keyRoomId = pick(["kitchen", "medical", "cargo", "engine"]);
-  const candidates = rooms[keyRoomId].objects.filter((o) => o.containsItem);
-  pick(candidates).guaranteedItem = "captainKey";
-  const cargoCandidates = rooms["cargo"].objects.filter(
-    (o) => o.containsItem && !o.guaranteedItem
-  );
-  pick(cargoCandidates).guaranteedItem = "backpack";
+  // Both placements go through free() rather than assuming a container exists:
+  // placeObject can skip an object in a tight room, and a run with no key is
+  // unwinnable, so preferred rooms fall back to anywhere on the ship.
+  const free = (roomIds: string[]) =>
+    roomIds
+      .flatMap((id) => rooms[id]?.objects ?? [])
+      .filter((o) => o.containsItem && !o.guaranteedItem);
+  const anyRoom = Object.keys(rooms);
+
+  const keyCandidates = free(["kitchen", "medical", "cargo", "engine"]);
+  pick(keyCandidates.length ? keyCandidates : free(anyRoom)).guaranteedItem = "captainKey";
+
+  const packCandidates = free(["cargo"]);
+  pick(packCandidates.length ? packCandidates : free(anyRoom)).guaranteedItem = "backpack";
 
   return {
     rooms,

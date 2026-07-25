@@ -12,9 +12,7 @@ import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance } from "../game/collision";
 import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useAudio } from "../state/useAudio";
-import { ZOMBIE_KINDS } from "../game/zombieKinds";
-
-const ZOMBIE_SIZE = 0.7;
+import { ZOMBIE_KINDS, ZOMBIE_SIZE } from "../game/zombieKinds";
 
 function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const cfg = ZOMBIE_KINDS[spawn.kind];

@@ -22,6 +22,9 @@ export interface ZombieKindConfig {
   weight: number;
 }
 
+/** Collision footprint, shared by spawn placement and per-frame movement. */
+export const ZOMBIE_SIZE = 0.7;
+
 export const ZOMBIE_KINDS: Record<ZombieKind, ZombieKindConfig> = {
   shambler: {
     label: "Shambler",
