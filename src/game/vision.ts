@@ -16,13 +16,6 @@ const SOFT_EDGE_DEGREES = 18;
 const FEEL_RADIUS = 2.6;
 /** After it hits you, or you hit it, it stays visible this long. */
 export const CONTACT_REVEAL_MS = 900;
-/**
- * Outside the cone an aggroed zombie still shows its eyes, faintly, within
- * this range. Two red pinpricks in the dark tell you something is coming
- * without telling you what or exactly where. Set to 0 to switch it off.
- */
-const EYE_GLOW_RANGE = 9;
-const EYE_GLOW_OPACITY = 0.55;
 
 const DEG = Math.PI / 180;
 const CONE_HALF = (CONE_DEGREES / 2) * DEG;
@@ -44,37 +37,25 @@ export function angleDelta(a: number, b: number): number {
   return d;
 }
 
-export interface Visibility {
-  /** Opacity for the body, head and arms. */
-  body: number;
-  /** Opacity for the eyes — never below the body's. */
-  eyes: number;
-}
-
 /**
- * How visible a zombie is right now. Rotations use the same convention as the
- * rest of the game: atan2(dx, dz), zero pointing down +z.
+ * How visible a zombie is right now, as an opacity from 0 to 1 applied to the
+ * whole figure — eyes included, so nothing is left hanging in the dark once
+ * the body is gone. Rotations use the same convention as the rest of the game:
+ * atan2(dx, dz), zero pointing down +z.
  */
 export function zombieVisibility(
   player: { x: number; z: number; rot: number },
   zombie: { x: number; z: number },
   distance: number,
-  aggroed: boolean,
   revealedUntil: number,
   now: number
-): Visibility {
-  if (now < revealedUntil) return { body: 1, eyes: 1 };
+): number {
+  if (now < revealedUntil) return 1;
 
   const bearing = Math.atan2(zombie.x - player.x, zombie.z - player.z);
   const offAxis = Math.abs(angleDelta(bearing, player.rot));
   const inCone = 1 - smoothstep(CONE_HALF, CONE_HALF + SOFT_EDGE, offAxis);
   const nearby = 1 - smoothstep(FEEL_RADIUS * 0.6, FEEL_RADIUS, distance);
 
-  const body = Math.max(inCone, nearby);
-  const glow =
-    aggroed && EYE_GLOW_RANGE > 0
-      ? EYE_GLOW_OPACITY * (1 - smoothstep(EYE_GLOW_RANGE * 0.6, EYE_GLOW_RANGE, distance))
-      : 0;
-
-  return { body, eyes: Math.max(body, glow) };
+  return Math.max(inCone, nearby);
 }

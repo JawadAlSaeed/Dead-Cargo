@@ -44,8 +44,6 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const lastHp = useRef(spawn.hp);
   const flashUntil = useRef(0);
   const wasAggroed = useRef(false);
-  const bodyPartsRef = useRef<THREE.Group>(null);
-  const eyesRef = useRef<THREE.Group>(null);
   // Contact — either direction — reveals it briefly, so nothing is ever hitting
   // you from a place you cannot see.
   const revealedUntil = useRef(0);
@@ -112,16 +110,10 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     }
 
     // Visibility last, so it accounts for everything that happened this frame.
-    const vis = zombieVisibility(
-      player,
-      pos,
-      dist,
-      aggroed,
-      revealedUntil.current,
-      performance.now()
+    applyOpacity(
+      groupRef.current,
+      zombieVisibility(player, pos, dist, revealedUntil.current, performance.now())
     );
-    applyOpacity(bodyPartsRef.current, vis.body);
-    applyOpacity(eyesRef.current, vis.eyes);
 
     const group = groupRef.current;
     if (group) {
@@ -150,38 +142,32 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
 
   return (
     <group ref={groupRef} position={[spawn.position.x, 0, spawn.position.z]} scale={cfg.scale}>
-      {/* Body, head and arms fade together as you look away. */}
-      <group ref={bodyPartsRef}>
-        <mesh position={[0, 0.7, 0]} castShadow>
-          <capsuleGeometry args={[0.32, 0.65, 6, 12]} />
-          <meshStandardMaterial ref={bodyMat} color={cfg.bodyColor} emissive="#1a0000" />
-        </mesh>
-        <mesh position={[0, 1.35, 0.05]}>
-          <sphereGeometry args={[0.22, 12, 12]} />
-          <meshStandardMaterial color={cfg.headColor} />
-        </mesh>
-        {/* Reaching arms */}
-        <mesh ref={armLRef} position={[-0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
-          <boxGeometry args={[0.12, 0.12, 0.55]} />
-          <meshStandardMaterial color={cfg.bodyColor} />
-        </mesh>
-        <mesh ref={armRRef} position={[0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
-          <boxGeometry args={[0.12, 0.12, 0.55]} />
-          <meshStandardMaterial color={cfg.bodyColor} />
-        </mesh>
-      </group>
-      {/* Eyes fade separately — they linger outside the cone once it has seen
-          you, so a zombie in the dark reads as two pinpricks before anything else. */}
-      <group ref={eyesRef}>
-        <mesh position={[-0.08, 1.4, 0.22]}>
-          <sphereGeometry args={[0.035, 6, 6]} />
-          <meshBasicMaterial color={cfg.eyeColor} />
-        </mesh>
-        <mesh position={[0.08, 1.4, 0.22]}>
-          <sphereGeometry args={[0.035, 6, 6]} />
-          <meshBasicMaterial color={cfg.eyeColor} />
-        </mesh>
-      </group>
+      <mesh position={[0, 0.7, 0]} castShadow>
+        <capsuleGeometry args={[0.32, 0.65, 6, 12]} />
+        <meshStandardMaterial ref={bodyMat} color={cfg.bodyColor} emissive="#1a0000" />
+      </mesh>
+      <mesh position={[0, 1.35, 0.05]}>
+        <sphereGeometry args={[0.22, 12, 12]} />
+        <meshStandardMaterial color={cfg.headColor} />
+      </mesh>
+      {/* Eyes */}
+      <mesh position={[-0.08, 1.4, 0.22]}>
+        <sphereGeometry args={[0.035, 6, 6]} />
+        <meshBasicMaterial color={cfg.eyeColor} />
+      </mesh>
+      <mesh position={[0.08, 1.4, 0.22]}>
+        <sphereGeometry args={[0.035, 6, 6]} />
+        <meshBasicMaterial color={cfg.eyeColor} />
+      </mesh>
+      {/* Reaching arms */}
+      <mesh ref={armLRef} position={[-0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
+        <boxGeometry args={[0.12, 0.12, 0.55]} />
+        <meshStandardMaterial color={cfg.bodyColor} />
+      </mesh>
+      <mesh ref={armRRef} position={[0.28, 0.95, 0.3]} rotation={[Math.PI / 2.4, 0, 0]}>
+        <boxGeometry args={[0.12, 0.12, 0.55]} />
+        <meshStandardMaterial color={cfg.bodyColor} />
+      </mesh>
     </group>
   );
 }
