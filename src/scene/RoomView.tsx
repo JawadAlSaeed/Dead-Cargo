@@ -50,10 +50,16 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
 
   if (obj.type === "light") {
     return (
-      <mesh position={[obj.position.x, WALL_HEIGHT - 0.4, obj.position.z]}>
-        <boxGeometry args={[obj.size.width, 0.2, obj.size.height]} />
-        <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={1.5} />
-      </mesh>
+      <group position={[obj.position.x, WALL_HEIGHT - 0.4, obj.position.z]}>
+        <mesh>
+          <boxGeometry args={[obj.size.width, 0.2, obj.size.height]} />
+          <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={1.5} />
+        </mesh>
+        {/* The fixture used to be emissive only, so the corridor it is meant to
+            light stayed pitch black. Short range, so it pools under each lamp
+            and leaves dark stretches between them. */}
+        <pointLight intensity={9} distance={9} decay={2} color={obj.color} />
+      </group>
     );
   }
 

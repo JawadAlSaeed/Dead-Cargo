@@ -8,6 +8,24 @@ import { useInventory } from "./state/useInventory";
 // Dev/debug handle for poking at live state from the console.
 (window as any).__game = { world, useGameStore, useInventory };
 
+// Dev/debug: save what the canvas currently shows to .screenshots/<name>.jpg.
+// The scene renders even when the browser isn't compositing frames, so this
+// works in situations where an external screenshot tool captures nothing.
+// Paired with the screenshot endpoint in vite.config.ts.
+if (import.meta.env.DEV) {
+  (window as any).__shot = async (name = "shot", width = 900, quality = 0.6) => {
+    const source = document.querySelector("canvas");
+    if (!source) throw new Error("no canvas to capture");
+    const scaled = document.createElement("canvas");
+    scaled.width = width;
+    scaled.height = Math.round(source.height * (width / source.width));
+    scaled.getContext("2d")!.drawImage(source, 0, 0, scaled.width, scaled.height);
+    const data = scaled.toDataURL("image/jpeg", quality).split(",")[1];
+    const res = await fetch("/__shot", { method: "POST", body: `${name}\n${data}` });
+    return res.text();
+  };
+}
+
 // With ?headless, drive animation frames from timers so the game loop keeps
 // running when the window isn't compositing (used for automated testing).
 if (new URLSearchParams(location.search).has("headless")) {

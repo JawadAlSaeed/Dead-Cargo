@@ -302,8 +302,11 @@ export function Player({ room }: { room: Room }) {
           <meshBasicMaterial color="#ffdc7a" />
         </mesh>
       </group>
-      {/* Personal light — the ship is dark */}
-      <pointLight position={[0, 2.2, 0]} intensity={18} distance={11} color="#ffe8c0" />
+      {/* Personal light — the ship is dark. Kept well above head height: at
+          2.2 it sat less than a unit over the head sphere and blew it out to
+          pure white, so the courier read as a lightbulb rather than a person.
+          Intensity is raised to keep the same pool of light on the floor. */}
+      <pointLight position={[0, 3.6, 0]} intensity={42} distance={14} color="#ffe8c0" />
     </group>
   );
 }
