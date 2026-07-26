@@ -15,6 +15,16 @@ import { useAudio } from "../state/useAudio";
 import { ZOMBIE_KINDS, ZOMBIE_SIZE } from "../game/zombieKinds";
 import { CONTACT_REVEAL_MS, zombieVisibility } from "../game/vision";
 
+// Growls are the only warning you get for anything outside the view cone, so
+// they repeat for as long as a zombie is hunting you rather than firing once
+// when it first notices. Closer means louder and more often.
+const GROWL_VOLUME_FAR = 0.1;
+const GROWL_VOLUME_NEAR = 0.42;
+const GROWL_GAP_NEAR_MS = 1400;
+const GROWL_GAP_FAR_MS = 2900;
+/** Sideways offset that pans a growl fully to one ear. */
+const GROWL_PAN_RANGE = 7;
+
 /**
  * Fade every material under a group, and skip drawing it once fully hidden.
  *
@@ -43,7 +53,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
   const lastAttackAt = useRef(0);
   const lastHp = useRef(spawn.hp);
   const flashUntil = useRef(0);
-  const wasAggroed = useRef(false);
+  const nextGrowlAt = useRef(0);
   // Contact — either direction — reveals it briefly, so nothing is ever hitting
   // you from a place you cannot see.
   const revealedUntil = useRef(0);
@@ -78,10 +88,24 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const dist = getDistance(pos.x, pos.z, player.x, player.z);
 
     const aggroed = dist < cfg.aggroRange;
-    if (aggroed && !wasAggroed.current && !isUiOpen(store)) {
-      useAudio.getState().playGrowl();
+    if (aggroed && !isUiOpen(store)) {
+      const now = performance.now();
+      if (now >= nextGrowlAt.current) {
+        // Closeness drives both loudness and cadence, so a thing behind you
+        // gets harder to ignore as it closes rather than announcing itself
+        // once and then stalking you in silence.
+        const closeness = 1 - Math.min(1, dist / cfg.aggroRange);
+        const volume = GROWL_VOLUME_FAR + (GROWL_VOLUME_NEAR - GROWL_VOLUME_FAR) * closeness;
+        const pan = Math.max(-1, Math.min(1, (pos.x - player.x) / GROWL_PAN_RANGE));
+        useAudio.getState().playGrowl(volume, pan);
+        const gap = GROWL_GAP_FAR_MS - (GROWL_GAP_FAR_MS - GROWL_GAP_NEAR_MS) * closeness;
+        // Jitter keeps a pack from falling into lockstep and sounding metronomic.
+        nextGrowlAt.current = now + gap * (0.75 + Math.random() * 0.5);
+      }
+    } else {
+      // Lose interest and the next sighting growls immediately.
+      nextGrowlAt.current = 0;
     }
-    wasAggroed.current = aggroed;
 
     if (dist < cfg.aggroRange && dist > cfg.attackRange * 0.6 && !isUiOpen(store)) {
       let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
@@ -106,6 +130,10 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     ) {
       lastAttackAt.current = performance.now();
       revealedUntil.current = performance.now() + CONTACT_REVEAL_MS;
+      world.lastHit = {
+        angle: Math.atan2(pos.x - player.x, pos.z - player.z),
+        at: performance.now()
+      };
       store.damagePlayer(cfg.damage);
     }
 

@@ -129,7 +129,26 @@ export function playFootstep(volume: number) {
   noise.stop(now + 0.08);
 }
 
-export function playGrowl(volume: number) {
+/**
+ * Where a sound should sit in the stereo field. The camera looks straight down
+ * the ship's z axis, so world x maps directly to screen left/right — panning on
+ * it is honest positioning rather than a guess. Falls back to plain mono output
+ * if the browser has no StereoPannerNode.
+ */
+function pannedOutput(context: AudioContext, pan: number): AudioNode {
+  if (typeof context.createStereoPanner !== "function") return context.destination;
+  const panner = context.createStereoPanner();
+  panner.pan.value = Math.max(-1, Math.min(1, pan));
+  panner.connect(context.destination);
+  return panner;
+}
+
+/**
+ * A zombie noticing you, or reminding you it is still coming. Panned, because
+ * once zombies are invisible outside the view cone this is the only thing
+ * telling you which way to turn.
+ */
+export function playGrowl(volume: number, pan = 0) {
   const context = getCtx();
   const now = context.currentTime;
   const osc = context.createOscillator();
@@ -145,7 +164,7 @@ export function playGrowl(volume: number) {
   gain.gain.linearRampToValueAtTime(0.001, now + 0.55);
   osc.connect(filter);
   filter.connect(gain);
-  gain.connect(context.destination);
+  gain.connect(pannedOutput(context, pan));
   osc.start(now);
   osc.stop(now + 0.6);
 }

@@ -4,9 +4,13 @@ import App from "./App";
 import { world } from "./game/world";
 import { useGameStore } from "./state/useGameStore";
 import { useInventory } from "./state/useInventory";
+import { useAudio } from "./state/useAudio";
 
-// Dev/debug handle for poking at live state from the console.
-(window as any).__game = { world, useGameStore, useInventory };
+// Dev/debug handle for poking at live state from the console. Reach the stores
+// through this rather than importing them: in dev, Vite serves a changed module
+// under a fresh URL, so a separate import can hand you a second store instance
+// that the running game is not using.
+(window as any).__game = { world, useGameStore, useInventory, useAudio };
 
 // Dev/debug: save what the canvas currently shows to .screenshots/<name>.jpg.
 // The scene renders even when the browser isn't compositing frames, so this

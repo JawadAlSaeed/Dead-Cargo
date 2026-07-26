@@ -46,6 +46,50 @@ function Crosshair() {
   );
 }
 
+/** How long the damage arc stays up after a hit. */
+const DAMAGE_ARC_MS = 1100;
+
+/**
+ * Arc at the screen edge pointing at whatever just hit you.
+ *
+ * With zombies invisible outside the view cone, damage otherwise arrives from
+ * nowhere with no way to learn which way to turn — which is unfair rather than
+ * frightening. Driven from the same rAF loop style as the crosshair so it costs
+ * no React re-renders.
+ */
+function DamageArc() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let raf = 0;
+    let shownAt = -1;
+    const tick = () => {
+      const el = ref.current;
+      if (el) {
+        const { angle, at } = world.lastHit;
+        const age = performance.now() - at;
+        if (at !== shownAt || age < DAMAGE_ARC_MS) {
+          shownAt = at;
+          const live = at > 0 && age < DAMAGE_ARC_MS && !isUiOpen(useGameStore.getState());
+          el.style.opacity = live ? String(1 - age / DAMAGE_ARC_MS) : "0";
+          // World bearing 0 is +z, which the camera shows as screen-down; the
+          // marker is drawn pointing up, so screen angle is 180 - bearing.
+          el.style.transform = `rotate(${180 - (angle * 180) / Math.PI}deg)`;
+        }
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div ref={ref} className="damage-arc" aria-hidden="true">
+      <span />
+    </div>
+  );
+}
+
 export function HUD() {
   const health = useGameStore((s) => s.health);
   const maxHealth = useGameStore((s) => s.maxHealth);
@@ -88,6 +132,7 @@ export function HUD() {
         />
       )}
       <Crosshair />
+      <DamageArc />
 
       <div className="hud-top">
         <div className="hud-room">{roomLabel}</div>
