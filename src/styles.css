@@ -423,3 +423,18 @@
   color: #62666e;
   font-size: 13px;
 }
+
+/* Recipes for the selected item, shown beside the action buttons. */
+.inv-recipes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.inv-recipes em {
+  color: #b8912f;
+  font-size: 12px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}

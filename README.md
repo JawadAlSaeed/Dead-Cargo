@@ -14,6 +14,12 @@
 - The inventory starts small (5x6) and is expanded by lootable upgrades: a Side Pouch (+1 column) and a Backpack (+2 rows, guaranteed somewhere in the Cargo Hold), up to a maximum of 8x10.
 - Searching a crate, cabinet, locker, or footlocker opens a dedicated loot window with its own grid, separate from your inventory — just like Tarkov. Contents are generated the first time you search a container, reveal one at a time while you search, and stay put if you leave and come back. Drag items either direction between the container and your inventory, or double-click to quick-take/quick-use.
 
+### Crafting
+- **Drag one item onto another in your inventory to combine them.** There is no crafting screen — the grid is the interface, the way it is in Resident Evil. A valid pairing highlights the target in amber as you hold an item over it; selecting an item lists what it combines with, so nothing has to be memorised.
+- Two **Green Herbs** make a **Medical Kit**. Every recipe beats its inputs used separately — two herbs heal 30 each, and the kit heals 80 — but you pay for it in flexibility: a kit is one action you cannot split across two bad moments, and it is wasted if you use it at 90 health. Deciding when *not* to combine is the point.
+- **Gunpowder** and **Scrap Metal** are raw materials that do nothing on their own. Two Gunpowder become Shotgun Shells; Gunpowder and Scrap become 9mm Ammo; two Scrap become a Combat Knife — so a run that turns up no weapons still has a way out. They cost grid space now for a payoff later, which is the decision they exist to force.
+- Crafting works only in your own inventory, never inside a container, and a combination that has nowhere to go is refused outright rather than consuming the ingredients.
+
 ### Procedural Ship
 - Each run generates a two-deck ship: six rooms (Crew Bedroom, Galley, Medical Bay, Cargo Hold, Engine Room, Captain's Cabin), shuffled and split three-and-three across the lower and upper deck's corridors, connected by a stairwell — so which rooms neighbor each other and which deck the start room / Captain's Cabin land on both vary run to run.
 - Each corridor runs along the ship's hull: rooms open off one side, and the other side is windowed, with open water visible beyond the glass.
@@ -34,7 +40,7 @@
 ## Planned / Not Yet Implemented
 These are part of the original vision and not yet built:
 - Throwables and stealth as further alternatives to gunfights
-- Crafting (combining herbs, building ammo/medkits/traps)
+- Traps, as a further crafting branch beyond healing and ammo
 - Persistent meta-progression and unlockable starting loadouts across runs
 - Multiple escape routes (lifeboat, engine repair) beyond the radio
 
@@ -47,6 +53,7 @@ These are part of the original vision and not yet built:
 - **Tab** — open/close inventory
 - **M** — mute audio
 - In any grid (inventory or a loot window): **drag** an item to move it, **R** rotates the item while you're holding it, **double-click** an item to use/equip it (or quick-take it from a container)
+- In your inventory: **drag an item onto another** to combine them, if the pair has a recipe
 
 ## Technical Stack
 - Vite + React + TypeScript, client-only (no server)

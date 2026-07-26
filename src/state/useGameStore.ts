@@ -15,6 +15,7 @@ import {
   generateRandomItem
 } from "../game/items";
 import { canPlace, findPlacement } from "../game/grid";
+import { combinesWith, findRecipe } from "../game/crafting";
 import { resetWorld, triggerShake, world } from "../game/world";
 import { InventoryItem, itemFromBlueprint, useInventory } from "./useInventory";
 import { useAudio } from "./useAudio";
@@ -69,6 +70,8 @@ interface GameState {
     itemId: string,
     target?: { x: number; y: number; rotation: number }
   ) => boolean;
+  /** Combine two inventory items via a recipe. Returns true if it happened. */
+  craftItems: (sourceId: string, targetId: string) => boolean;
   interactRadio: () => void;
   hitZombie: (zombieId: string, damage: number) => void;
   fireShot: () => boolean;
@@ -302,6 +305,42 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true;
   },
 
+  craftItems: (sourceId, targetId) => {
+    const { setMessage } = get();
+    const inv = useInventory.getState();
+    const source = inv.items.find((i) => i.id === sourceId);
+    const target = inv.items.find((i) => i.id === targetId);
+    if (!source || !target || source.id === target.id) return false;
+
+    const recipe = findRecipe(source.name, target.name);
+    if (!recipe) return false;
+
+    // Work out where the result goes before destroying the inputs, so a failure
+    // leaves the inventory untouched rather than eating both items.
+    const remaining = inv.items.filter((i) => i.id !== sourceId && i.id !== targetId);
+    const { shape } = recipe.output;
+    const atTarget = [0, 1, 2, 3].find((rotation) =>
+      canPlace(shape, rotation, target.position.x, target.position.y, inv.gridSize, remaining)
+    );
+    const spot =
+      atTarget === undefined
+        ? findPlacement(shape, inv.gridSize, remaining)
+        : { x: target.position.x, y: target.position.y, rotation: atTarget };
+    if (!spot) {
+      setMessage(`No room to assemble the ${recipe.output.name}.`);
+      return false;
+    }
+
+    inv.removeItem(sourceId);
+    inv.removeItem(targetId);
+    inv.insertItem(
+      itemFromBlueprint(recipe.output, { x: spot.x, y: spot.y }, spot.rotation)
+    );
+    useAudio.getState().playSuccess();
+    setMessage(`${source.name} + ${target.name} → ${recipe.output.name}.`);
+    return true;
+  },
+
   interactRadio: () => {
     useAudio.getState().playSuccess();
     useAudio.getState().stopMusic();
@@ -401,8 +440,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       case "key":
         setMessage("Bring it to the locked door.");
         break;
-      default:
-        setMessage(`Nothing to do with ${item.name}.`);
+      default: {
+        // Raw materials do nothing alone — say what they're for rather than
+        // leaving the player to guess that the game has crafting at all.
+        const uses = combinesWith(item.name);
+        setMessage(
+          uses.length
+            ? `${item.name} — drag it onto another item. ${uses.join("  ·  ")}`
+            : `Nothing to do with ${item.name}.`
+        );
+      }
     }
   },
 
