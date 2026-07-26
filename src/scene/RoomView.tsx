@@ -12,17 +12,82 @@ const WALL_HEIGHT = 2.4;
 const OCEAN_DEPTH = 70;
 
 const OBJECT_HEIGHTS: Record<string, number> = {
+  // Sleeping
+  bunk: 0.5,
+  medBed: 0.5,
+  nightstand: 0.6,
+  // Storage — the tall ones read as a silhouette even unlit
+  wardrobe: 2.0,
+  tallLocker: 1.9,
+  fridge: 1.9,
+  cabinet: 1.5,
+  medCabinet: 1.5,
+  bookshelf: 1.8,
+  shelving: 1.8,
+  supplyShelf: 1.7,
+  footlocker: 0.5,
+  toolbox: 0.45,
   crate: 1.0,
-  cabinet: 1.6,
-  locker: 1.8,
-  footlocker: 0.7,
-  table: 0.85,
+  // Surfaces
+  counter: 0.95,
+  workbench: 0.95,
+  stove: 0.9,
+  diningTable: 0.8,
+  deskSmall: 0.78,
   desk: 0.9,
   chair: 0.9,
+  // Bulk
+  engineBlock: 1.6,
+  pipes: 2.0,
   barrel: 1.1,
-  shelf: 1.7,
+  pallet: 0.22,
   radio: 0.4
 };
+
+/** Storage units get a seam down the front so they read as doors, not blocks. */
+const DOORED = new Set(["wardrobe", "tallLocker", "fridge", "cabinet", "medCabinet"]);
+
+/**
+ * A bed: frame, mattress, pillow at one end. Worth the extra meshes because a
+ * bed is the single clearest signal that a room is a room — a bare box the same
+ * size reads as another crate.
+ */
+function BedMesh({ obj, height }: { obj: RoomObject; height: number }) {
+  const { width, height: depth } = obj.size;
+  const alongZ = depth >= width;
+  const sheet = obj.type === "medBed" ? "#e8edf1" : "#8a8478";
+  const pillow = obj.type === "medBed" ? "#ffffff" : "#c9c2b2";
+  const pad = 0.16;
+  const pillowLen = 0.55;
+  return (
+    <group position={[obj.position.x, 0, obj.position.z]}>
+      <mesh position={[0, height / 2, 0]} castShadow>
+        <boxGeometry args={[width, height, depth]} />
+        <meshStandardMaterial color={obj.color} roughness={0.9} />
+      </mesh>
+      <mesh position={[0, height + 0.08, 0]}>
+        <boxGeometry args={[width - pad, 0.16, depth - pad]} />
+        <meshStandardMaterial color={sheet} roughness={0.95} />
+      </mesh>
+      <mesh
+        position={[
+          alongZ ? 0 : -(width / 2 - pillowLen / 2 - pad / 2),
+          height + 0.2,
+          alongZ ? -(depth / 2 - pillowLen / 2 - pad / 2) : 0
+        ]}
+      >
+        <boxGeometry
+          args={[
+            alongZ ? width - pad * 2.2 : pillowLen,
+            0.12,
+            alongZ ? pillowLen : depth - pad * 2.2
+          ]}
+        />
+        <meshStandardMaterial color={pillow} roughness={0.9} />
+      </mesh>
+    </group>
+  );
+}
 
 function Floor({ room }: { room: Room }) {
   const textureUrl = room.type === "hallway" ? "/textures/asphalt.png" : "/textures/wood.jpg";
@@ -91,9 +156,13 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
     );
   }
 
+  if (obj.type === "bunk" || obj.type === "medBed") {
+    return <BedMesh obj={obj} height={height} />;
+  }
+
   const searchGlow = obj.containsItem && !searched;
-  return (
-    <mesh position={[obj.position.x, height / 2, obj.position.z]} castShadow>
+  const body = (
+    <mesh position={[0, height / 2, 0]} castShadow>
       <boxGeometry args={[obj.size.width, height, obj.size.height]} />
       <meshStandardMaterial
         color={searched ? "#2e2b28" : obj.color}
@@ -101,6 +170,44 @@ function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
         emissiveIntensity={searchGlow ? 0.25 : 0}
       />
     </mesh>
+  );
+
+  return (
+    <group position={[obj.position.x, 0, obj.position.z]}>
+      {body}
+
+      {/* Four burners, so a stove is not just a grey box. */}
+      {obj.type === "stove" &&
+        [-1, 1].flatMap((sx) =>
+          [-1, 1].map((sz) => (
+            <mesh
+              key={`${sx}${sz}`}
+              rotation={[-Math.PI / 2, 0, 0]}
+              position={[(sx * obj.size.width) / 5, height + 0.01, (sz * obj.size.height) / 5]}
+            >
+              <circleGeometry args={[Math.min(obj.size.width, obj.size.height) / 6, 10]} />
+              <meshStandardMaterial color="#15171a" roughness={0.7} />
+            </mesh>
+          ))
+        )}
+
+      {/* Seam down the front face of storage units, reading as a pair of doors. */}
+      {DOORED.has(obj.type) && (
+        <mesh position={[0, height / 2, obj.size.height / 2 + 0.01]}>
+          <boxGeometry args={[0.05, height * 0.8, 0.02]} />
+          <meshStandardMaterial color="#1b1e22" />
+        </mesh>
+      )}
+
+      {/* Slats, so a pallet reads as a pallet from above. */}
+      {obj.type === "pallet" &&
+        [-1, 0, 1].map((i) => (
+          <mesh key={i} position={[0, height + 0.02, (i * obj.size.height) / 3.2]}>
+            <boxGeometry args={[obj.size.width * 0.94, 0.06, obj.size.height / 7]} />
+            <meshStandardMaterial color="#5f4b2c" roughness={0.95} />
+          </mesh>
+        ))}
+    </group>
   );
 }
 

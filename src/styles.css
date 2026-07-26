@@ -309,6 +309,10 @@
   justify-content: center;
 }
 
+/* The panel used to be sized by its widest child — the header, or a long line
+   of hint text — which left a 4x4 grid floating in three times its own width of
+   empty panel. Now it is capped and centred, and the text inside wraps to fit
+   rather than dictating how wide the window is. */
 .inv-panel {
   background: #14171c;
   border: 1px solid #454c58;
@@ -316,14 +320,22 @@
   padding: 18px;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 14px;
+  max-width: min(90vw, 360px);
+}
+
+.inv-header,
+.inv-actions {
+  align-self: stretch;
 }
 
 .inv-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  letter-spacing: 3px;
+  gap: 10px;
+  letter-spacing: 1.5px;
   font-size: 14px;
   color: #b9b09a;
 }
@@ -417,11 +429,18 @@
   gap: 10px;
   min-height: 36px;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
+/* min-width:0 so it wraps inside the flex row instead of forcing the panel
+   out to the width of one unbroken line. */
 .inv-hint {
   color: #62666e;
   font-size: 13px;
+  min-width: 0;
+  text-align: center;
+  line-height: 1.45;
 }
 
 /* Recipes for the selected item, shown beside the action buttons. */

@@ -24,6 +24,23 @@ const STAIRS_SLOT_X = 13.5;
 // on the corridor's near wall (+z), so this sits just inside it.
 const HALL_ENTRY_Z = HALLWAY_DEPTH / 2 - 2.5;
 
+/**
+ * One kind of furniture in a room. Sizes are the piece's real footprint in the
+ * room's default orientation, long axis along x — a bed placed against a side
+ * wall swaps them so it still lies along the wall rather than sticking out.
+ */
+interface FurnitureSpec {
+  type: string;
+  w: number;
+  h: number;
+  /** Fixed count, or an inclusive [min, max] range rolled per run. */
+  count: number | [number, number];
+  /** Searchable furniture is what holds loot. */
+  searchable?: boolean;
+  /** Beds, wardrobes and counters belong against a wall, not adrift mid-room. */
+  againstWall?: boolean;
+}
+
 interface RoomSpec {
   id: string;
   type: RoomType;
@@ -31,28 +48,134 @@ interface RoomSpec {
   w: number;
   h: number;
   zombies: number;
-  searchables: number;
-  decor: number;
+  furniture: FurnitureSpec[];
 }
 
+/**
+ * Rooms are furnished as the rooms they claim to be, rather than scattered with
+ * interchangeable crates. What is searchable follows from what the room is: you
+ * go through the nightstands in the bunkroom and the medicine cabinets in the
+ * infirmary, so the ship reads as a place before it reads as a loot table.
+ */
 const ROOM_SPECS: RoomSpec[] = [
-  { id: "bedroom", type: "bedroom", label: "Crew Bedroom", w: 14, h: 12, zombies: 0, searchables: 2, decor: 2 },
-  { id: "kitchen", type: "kitchen", label: "Galley", w: 16, h: 12, zombies: 2, searchables: 3, decor: 3 },
-  { id: "medical", type: "medical", label: "Medical Bay", w: 14, h: 12, zombies: 2, searchables: 3, decor: 2 },
-  { id: "cargo", type: "cargo", label: "Cargo Hold", w: 18, h: 14, zombies: 3, searchables: 4, decor: 4 },
-  { id: "engine", type: "engine", label: "Engine Room", w: 16, h: 14, zombies: 3, searchables: 3, decor: 3 },
-  { id: "captain", type: "captainCabin", label: "Captain's Cabin", w: 12, h: 10, zombies: 1, searchables: 1, decor: 1 }
+  {
+    id: "bedroom",
+    type: "bedroom",
+    label: "Crew Bedroom",
+    w: 14,
+    h: 12,
+    zombies: 0,
+    furniture: [
+      { type: "bunk", w: 2, h: 3, count: [2, 3], againstWall: true },
+      { type: "nightstand", w: 1, h: 1, count: 2, searchable: true, againstWall: true },
+      { type: "wardrobe", w: 2, h: 1, count: 1, searchable: true, againstWall: true },
+      { type: "footlocker", w: 2, h: 1, count: 1, searchable: true },
+      { type: "chair", w: 1, h: 1, count: 1 }
+    ]
+  },
+  {
+    id: "kitchen",
+    type: "kitchen",
+    label: "Galley",
+    w: 16,
+    h: 12,
+    zombies: 2,
+    furniture: [
+      { type: "counter", w: 3, h: 1, count: 2, againstWall: true },
+      { type: "stove", w: 2, h: 1, count: 1, againstWall: true },
+      { type: "fridge", w: 1, h: 1, count: 1, searchable: true, againstWall: true },
+      { type: "cabinet", w: 2, h: 1, count: 2, searchable: true, againstWall: true },
+      { type: "diningTable", w: 3, h: 2, count: 1 },
+      { type: "chair", w: 1, h: 1, count: [1, 2] }
+    ]
+  },
+  {
+    id: "medical",
+    type: "medical",
+    label: "Medical Bay",
+    w: 14,
+    h: 12,
+    zombies: 2,
+    furniture: [
+      { type: "medBed", w: 2, h: 3, count: 2, againstWall: true },
+      { type: "medCabinet", w: 1, h: 1, count: 2, searchable: true, againstWall: true },
+      { type: "supplyShelf", w: 2, h: 1, count: 1, searchable: true, againstWall: true },
+      { type: "deskSmall", w: 2, h: 1, count: 1 },
+      { type: "chair", w: 1, h: 1, count: 1 }
+    ]
+  },
+  {
+    id: "cargo",
+    type: "cargo",
+    label: "Cargo Hold",
+    w: 18,
+    h: 14,
+    zombies: 3,
+    furniture: [
+      { type: "crate", w: 2, h: 2, count: [3, 4], searchable: true },
+      { type: "pallet", w: 3, h: 2, count: 2 },
+      { type: "barrel", w: 1, h: 1, count: [2, 3] },
+      { type: "shelving", w: 3, h: 1, count: 1, againstWall: true }
+    ]
+  },
+  {
+    id: "engine",
+    type: "engine",
+    label: "Engine Room",
+    w: 16,
+    h: 14,
+    zombies: 3,
+    furniture: [
+      { type: "engineBlock", w: 4, h: 3, count: 1 },
+      { type: "pipes", w: 1, h: 3, count: 2, againstWall: true },
+      { type: "workbench", w: 3, h: 1, count: 1, againstWall: true },
+      { type: "toolbox", w: 1, h: 1, count: 2, searchable: true },
+      { type: "tallLocker", w: 1, h: 1, count: 1, searchable: true, againstWall: true },
+      { type: "barrel", w: 1, h: 1, count: 2 }
+    ]
+  },
+  {
+    id: "captain",
+    type: "captainCabin",
+    label: "Captain's Cabin",
+    w: 12,
+    h: 10,
+    zombies: 1,
+    furniture: [
+      { type: "bunk", w: 2, h: 3, count: 1, againstWall: true },
+      { type: "wardrobe", w: 2, h: 1, count: 1, searchable: true, againstWall: true },
+      { type: "bookshelf", w: 2, h: 1, count: 1, againstWall: true },
+      { type: "chair", w: 1, h: 1, count: 1 }
+    ]
+  }
 ];
 
-const OBJECT_STYLES: Record<string, { types: string[]; colors: string[] }> = {
-  searchable: {
-    types: ["crate", "cabinet", "locker", "footlocker"],
-    colors: ["#6b4a2b", "#5d5f66", "#4a5b52", "#705a3a"]
-  },
-  decor: {
-    types: ["table", "chair", "barrel", "shelf"],
-    colors: ["#3d3a35", "#46423c", "#37424a", "#4d443a"]
-  }
+/** Per-type colour, so a galley reads differently from an engine room. */
+const FURNITURE_COLORS: Record<string, string> = {
+  bunk: "#4a4038",
+  nightstand: "#6b4a2b",
+  wardrobe: "#5a4230",
+  footlocker: "#705a3a",
+  chair: "#46423c",
+  counter: "#585d63",
+  stove: "#3a3d42",
+  fridge: "#8d949c",
+  cabinet: "#5d5f66",
+  diningTable: "#6a5540",
+  medBed: "#cfd6dc",
+  medCabinet: "#e2e8ec",
+  supplyShelf: "#9aa6ad",
+  deskSmall: "#5a4632",
+  crate: "#6b4a2b",
+  pallet: "#7a6038",
+  barrel: "#37424a",
+  shelving: "#4d443a",
+  engineBlock: "#3c4148",
+  pipes: "#4a5158",
+  workbench: "#55483a",
+  toolbox: "#8a5a20",
+  tallLocker: "#4a5b52",
+  bookshelf: "#5b4534"
 };
 
 function rand(min: number, max: number): number {
@@ -105,10 +228,27 @@ function wallSegments(
  * Returns null when there is genuinely nowhere to put it; the caller skips the
  * object, which beats dropping it in the middle of the room.
  */
+/**
+ * Whether a piece of this footprint at (x, z) would stand in the doorway. The
+ * door sits at x = 0 on the south wall, and the couple of metres in front of it
+ * have to stay walkable or a run can be blocked in its own bedroom.
+ */
+function blocksDoorway(
+  x: number,
+  z: number,
+  footprint: { width: number; height: number },
+  roomH: number,
+  doorZSign: number
+): boolean {
+  const nearDoorX = Math.abs(x) < 2.2 + footprint.width / 2;
+  const inApproach = z * doorZSign + footprint.height / 2 > roomH / 2 - 3.0;
+  return nearDoorX && inApproach;
+}
+
 function placeObject(
   w: number,
   h: number,
-  size: { width: number; height: number },
+  footprint: { width: number; height: number },
   existing: RoomObject[],
   doorZSign: number
 ): { x: number; z: number } | null {
@@ -117,20 +257,81 @@ function placeObject(
     [0.6, 2.4],
     [0.15, 1.8]
   ];
+  // Bounds are the piece's own extent, not a fixed margin: furniture is up to
+  // 4 units across now, and a fixed inset let the big pieces hang into walls.
+  const limitX = w / 2 - WALL_T / 2 - footprint.width / 2 - 0.1;
+  const limitZ = h / 2 - WALL_T / 2 - footprint.height / 2 - 0.1;
+  if (limitX <= 0 || limitZ <= 0) return null;
+
   for (const [gap, centerClear] of passes) {
     for (let attempt = 0; attempt < 40; attempt++) {
-      const x = rand(-w / 2 + 2.2, w / 2 - 2.2);
-      const z = rand(-h / 2 + 2.2, h / 2 - 2.2);
-      // Keep the strip in front of the door clear so loot can't block the entrance.
-      if (Math.abs(x) < 2.2 && z * doorZSign > 0) continue;
+      const x = rand(-limitX, limitX);
+      const z = rand(-limitZ, limitZ);
+      // Keep the approach to the door walkable — again measured against the
+      // piece's real width, so a dining table cannot straddle the entrance.
+      if (blocksDoorway(x, z, footprint, h, doorZSign)) continue;
       // Keep the room center clear — it's the player start / a walk-through hub.
       if (Math.hypot(x, z) < centerClear) continue;
       const overlaps = existing.some(
         (o) =>
-          Math.abs(o.position.x - x) < (o.size.width + size.width) / 2 + gap &&
-          Math.abs(o.position.z - z) < (o.size.height + size.height) / 2 + gap
+          Math.abs(o.position.x - x) < (o.size.width + footprint.width) / 2 + gap &&
+          Math.abs(o.position.z - z) < (o.size.height + footprint.height) / 2 + gap
       );
       if (!overlaps) return { x, z };
+    }
+  }
+  return null;
+}
+
+type WallSide = "north" | "south" | "east" | "west";
+
+/**
+ * Place a piece flush against a wall, the way furniture actually sits in a
+ * room. Returns the position and the footprint it ended up with: against a side
+ * wall the piece is turned a quarter so its long axis runs along the wall
+ * instead of jutting into the floor.
+ */
+function placeAgainstWall(
+  w: number,
+  h: number,
+  footprint: { width: number; height: number },
+  existing: RoomObject[],
+  doorZSign: number
+): { x: number; z: number; size: { width: number; height: number } } | null {
+  const sides: WallSide[] = shuffle(["north", "south", "east", "west"]);
+  for (const gap of [0.5, 0.12]) {
+    for (const side of sides) {
+      const vertical = side === "east" || side === "west";
+      // Turned a quarter against the side walls so the long edge follows the wall.
+      const size = vertical
+        ? { width: footprint.height, height: footprint.width }
+        : { ...footprint };
+      const inset = WALL_T / 2 + 0.08;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        let x: number;
+        let z: number;
+        if (vertical) {
+          x =
+            side === "west"
+              ? -w / 2 + inset + size.width / 2
+              : w / 2 - inset - size.width / 2;
+          z = rand(-h / 2 + inset + size.height / 2, h / 2 - inset - size.height / 2);
+        } else {
+          z =
+            side === "north"
+              ? -h / 2 + inset + size.height / 2
+              : h / 2 - inset - size.height / 2;
+          x = rand(-w / 2 + inset + size.width / 2, w / 2 - inset - size.width / 2);
+        }
+        // Never block the doorway.
+        if (blocksDoorway(x, z, size, h, doorZSign)) continue;
+        const overlaps = existing.some(
+          (o) =>
+            Math.abs(o.position.x - x) < (o.size.width + size.width) / 2 + gap &&
+            Math.abs(o.position.z - z) < (o.size.height + size.height) / 2 + gap
+        );
+        if (!overlaps) return { x, z, size };
+      }
     }
   }
   return null;
@@ -193,24 +394,37 @@ function buildRoom(spec: RoomSpec, hallX: number, hallwayId: string, floor: numb
   }
 
   let objIndex = 0;
-  const add = (kind: "searchable" | "decor") => {
-    const style = OBJECT_STYLES[kind];
-    const size = { width: rand(1, 1.8), height: rand(1, 1.8) };
-    const position = placeObject(w, h, size, objects, doorZSign);
-    if (!position) return;
+  const add = (piece: FurnitureSpec) => {
+    const footprint = { width: piece.w, height: piece.h };
+    const placed = piece.againstWall
+      ? placeAgainstWall(w, h, footprint, objects, doorZSign)
+      : (() => {
+          const position = placeObject(w, h, footprint, objects, doorZSign);
+          return position ? { ...position, size: footprint } : null;
+        })();
+    // A room that runs out of floor simply gets less furniture — better than
+    // stacking two wardrobes on the same square.
+    if (!placed) return;
     objects.push({
       id: `${spec.id}-obj-${objIndex++}`,
-      type: pick(style.types),
-      position,
-      size,
+      type: piece.type,
+      position: { x: placed.x, z: placed.z },
+      size: placed.size,
       collidable: true,
-      color: pick(style.colors),
-      interactable: kind === "searchable",
-      containsItem: kind === "searchable"
+      color: FURNITURE_COLORS[piece.type] ?? "#4a4a4a",
+      interactable: !!piece.searchable,
+      containsItem: !!piece.searchable
     });
   };
-  for (let i = 0; i < spec.searchables; i++) add("searchable");
-  for (let i = 0; i < spec.decor; i++) add("decor");
+
+  // Bigger pieces first: they need the wall runs and the open floor, and a
+  // nightstand can always tuck into what is left over.
+  const pieces = [...spec.furniture].sort((a, b) => b.w * b.h - a.w * a.h);
+  for (const piece of pieces) {
+    const [min, max] = Array.isArray(piece.count) ? piece.count : [piece.count, piece.count];
+    const n = min + Math.floor(Math.random() * (max - min + 1));
+    for (let i = 0; i < n; i++) add(piece);
+  }
 
   return {
     id: spec.id,

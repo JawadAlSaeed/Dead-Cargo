@@ -70,8 +70,13 @@ interface GameState {
     itemId: string,
     target?: { x: number; y: number; rotation: number }
   ) => boolean;
-  /** Combine two inventory items via a recipe. Returns true if it happened. */
-  craftItems: (sourceId: string, targetId: string) => boolean;
+  /**
+   * Combine an item with one in your inventory. The source may sit in a
+   * container — dragging a herb straight out of a crate onto the herb in your
+   * bag is the obvious move, so it has to work. The result always lands in your
+   * inventory. Returns true if it happened.
+   */
+  craftItems: (sourceSide: GridSide, sourceId: string, targetId: string) => boolean;
   interactRadio: () => void;
   hitZombie: (zombieId: string, damage: number) => void;
   fireShot: () => boolean;
@@ -98,8 +103,22 @@ function generateContainer(guaranteed?: "captainKey" | "backpack", type?: string
   const blueprints: ItemBlueprint[] = [];
   if (guaranteed === "captainKey") blueprints.push(CAPTAIN_KEY);
   if (guaranteed === "backpack") blueprints.push(UPGRADE_TYPES.BACKPACK);
-  const count = 1 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < count; i++) blueprints.push(generateRandomItem());
+
+  // Weapons you already carry are not rewards — a second pistol is a grid
+  // problem. Rolled again in favour of something you can actually use.
+  const owned = new Set(
+    useInventory
+      .getState()
+      .items.filter((i) => i.type === "weapon")
+      .map((i) => i.name)
+  );
+
+  // Most containers hold nothing or one thing. Searching used to pay out 1-3
+  // items every single time, which buried the player in loot and made the grid
+  // irrelevant; an empty locker is what gives a full one any weight.
+  const roll = Math.random();
+  const count = roll < 0.3 ? 0 : roll < 0.8 ? 1 : 2;
+  for (let i = 0; i < count; i++) blueprints.push(generateRandomItem(owned));
 
   const items: InventoryItem[] = [];
   for (const bp of blueprints) {
@@ -305,10 +324,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true;
   },
 
-  craftItems: (sourceId, targetId) => {
-    const { setMessage } = get();
+  craftItems: (sourceSide, sourceId, targetId) => {
+    const { containers, setMessage } = get();
     const inv = useInventory.getState();
-    const source = inv.items.find((i) => i.id === sourceId);
+    const fromInventory = sourceSide === "inventory";
+    const sourceItems = fromInventory ? inv.items : containers[sourceSide]?.items ?? [];
+    const source = sourceItems.find((i) => i.id === sourceId);
     const target = inv.items.find((i) => i.id === targetId);
     if (!source || !target || source.id === target.id) return false;
 
@@ -316,7 +337,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!recipe) return false;
 
     // Work out where the result goes before destroying the inputs, so a failure
-    // leaves the inventory untouched rather than eating both items.
+    // leaves everything untouched rather than eating both items.
     const remaining = inv.items.filter((i) => i.id !== sourceId && i.id !== targetId);
     const { shape } = recipe.output;
     const atTarget = [0, 1, 2, 3].find((rotation) =>
@@ -331,7 +352,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       return false;
     }
 
-    inv.removeItem(sourceId);
+    if (fromInventory) {
+      inv.removeItem(sourceId);
+    } else {
+      set((s) => ({
+        containers: {
+          ...s.containers,
+          [sourceSide]: {
+            ...s.containers[sourceSide],
+            items: s.containers[sourceSide].items.filter((i) => i.id !== sourceId)
+          }
+        }
+      }));
+    }
     inv.removeItem(targetId);
     inv.insertItem(
       itemFromBlueprint(recipe.output, { x: spot.x, y: spot.y }, spot.rotation)

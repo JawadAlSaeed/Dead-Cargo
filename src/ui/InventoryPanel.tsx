@@ -4,8 +4,8 @@
 import { useCallback, useState } from "react";
 import { InventoryItem, useInventory } from "../state/useInventory";
 import { GridSide, useGameStore } from "../state/useGameStore";
-import { Cell, absCells, canPlace } from "../game/grid";
-import { combinesWith, findRecipe } from "../game/crafting";
+import { Cell, canPlace } from "../game/grid";
+import { combineTargetAt, combinesWith } from "../game/crafting";
 import { DragGhost, GridView, useDragController } from "./GridView";
 
 export function InventoryPanel() {
@@ -40,18 +40,10 @@ export function InventoryPanel() {
     endDrag();
   };
 
-  /** The item under `cell`, if dropping the held one on it would craft. */
-  const combineTargetAt = (cell: Cell): InventoryItem | null => {
-    if (!drag) return null;
-    const under = items.find(
-      (i) => i.id !== drag.item.id && absCells(i).some((c) => c.x === cell.x && c.y === cell.y)
-    );
-    if (!under || !findRecipe(drag.item.name, under.name)) return null;
-    return under;
-  };
+  const findCombineTarget = (cell: Cell) => combineTargetAt(drag?.item ?? null, items, cell);
 
   const onCombine = (target: InventoryItem) => {
-    if (drag) craftItems(drag.item.id, target.id);
+    if (drag) craftItems(drag.source, drag.item.id, target.id);
     setSelectedId(null);
     endDrag();
   };
@@ -88,7 +80,7 @@ export function InventoryPanel() {
           onDoubleClickItem={(item) => useItem(item.id)}
           selectedId={selectedId}
           equippedItemId={equippedItemId}
-          combineTargetAt={combineTargetAt}
+          combineTargetAt={findCombineTarget}
           onCombine={onCombine}
         />
 
@@ -122,8 +114,7 @@ export function InventoryPanel() {
             </>
           ) : (
             <span className="inv-hint">
-              Drag to move · drag onto another item to combine · R rotates while holding ·
-              double-click to use
+              Drag to move · drop onto an item to combine · R rotates · double-click to use
             </span>
           )}
         </div>

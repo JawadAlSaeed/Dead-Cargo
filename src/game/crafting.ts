@@ -10,6 +10,7 @@
 // it at 90 health. That trade is the decision the system is actually about.
 
 import { AMMO_TYPES, CRAFTED_TYPES, ItemBlueprint, MELEE_TYPES } from "./items";
+import { Cell, GridItemLike, absCells } from "./grid";
 
 export interface Recipe {
   /** Blueprint names, order-independent. */
@@ -54,6 +55,25 @@ export function findRecipe(a: string, b: string): Recipe | null {
         (r.inputs[0] === a && r.inputs[1] === b) || (r.inputs[0] === b && r.inputs[1] === a)
     ) ?? null
   );
+}
+
+/**
+ * The inventory item sitting at `cell` that the held item could combine with.
+ *
+ * Shared by the inventory window and the loot window, which both show your
+ * inventory — crafting has to work in either, and it works from a container
+ * item too, so `held` is not required to be in the inventory itself.
+ */
+export function combineTargetAt<T extends GridItemLike & { name: string }>(
+  held: { id: string; name: string } | null,
+  inventoryItems: T[],
+  cell: Cell
+): T | null {
+  if (!held) return null;
+  const under = inventoryItems.find(
+    (i) => i.id !== held.id && absCells(i).some((c) => c.x === cell.x && c.y === cell.y)
+  );
+  return under && findRecipe(held.name, under.name) ? under : null;
 }
 
 /** Every recipe a given item can take part in. Drives the in-game hint. */

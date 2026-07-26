@@ -141,10 +141,12 @@ export const UPGRADE_TYPES: Record<string, ItemBlueprint> = {
     properties: { expand: { w: 1, h: 0 } }
   },
   BACKPACK: {
+    // One row, not two. Against a 4x4 start, two rows was a 50% jump that
+    // ended the space problem in a single pickup.
     name: "Backpack",
     type: "upgrade",
     shape: cellRect(2, 2),
-    properties: { expand: { w: 0, h: 2 } }
+    properties: { expand: { w: 0, h: 1 } }
   }
 };
 
@@ -160,13 +162,7 @@ function pickRandom<T>(record: Record<string, T>): T {
   return record[keys[Math.floor(Math.random() * keys.length)]];
 }
 
-/**
- * Weighted random loot: mostly ammo, healing and raw materials, sometimes a
- * weapon or upgrade. Materials take a fifth of the pool — enough that crafting
- * comes up on its own during a run rather than being a system you have to go
- * looking for.
- */
-export function generateRandomItem(): ItemBlueprint {
+function rollItem(): ItemBlueprint {
   const roll = Math.random();
   if (roll < 0.3) return pickRandom(AMMO_TYPES);
   if (roll < 0.58) return pickRandom(HEALING_TYPES);
@@ -174,4 +170,24 @@ export function generateRandomItem(): ItemBlueprint {
   if (roll < 0.88) return pickRandom(WEAPON_TYPES);
   if (roll < 0.94) return MELEE_TYPES.KNIFE;
   return Math.random() < 0.6 ? UPGRADE_TYPES.POUCH : UPGRADE_TYPES.BACKPACK;
+}
+
+/**
+ * Weighted random loot: mostly ammo, healing and raw materials, sometimes a
+ * weapon or upgrade. Materials take a fifth of the pool — enough that crafting
+ * comes up on its own during a run rather than being a system you have to go
+ * looking for.
+ *
+ * `exclude` holds names the player already carries. A second pistol is not a
+ * reward, it is a grid-space problem you have to spend a turn dropping, so
+ * duplicates of things you cannot use twice are rolled again.
+ */
+export function generateRandomItem(exclude: ReadonlySet<string> = new Set()): ItemBlueprint {
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const blueprint = rollItem();
+    if (!exclude.has(blueprint.name)) return blueprint;
+  }
+  // Carrying one of everything that can be excluded — fall back to a material,
+  // which is never redundant because it stacks into something else.
+  return pickRandom(MATERIAL_TYPES);
 }
