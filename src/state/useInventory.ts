@@ -16,8 +16,12 @@ export interface InventoryItem {
   properties: ItemBlueprint["properties"];
 }
 
-export const GRID_MAX = { width: 8, height: 10 };
-const GRID_START = { width: 5, height: 6 };
+// A 4x4 pack that you feel the walls of immediately. The old 5x6 start was
+// never full, so upgrades landed as a nice-to-have rather than relief, and the
+// whole point of a grid inventory is that space hurts. The ceiling comes down
+// with it — growing to 8x10 from here would undo the pressure entirely.
+export const GRID_MAX = { width: 6, height: 6 };
+const GRID_START = { width: 4, height: 4 };
 
 export function itemFromBlueprint(
   blueprint: ItemBlueprint,

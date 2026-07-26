@@ -11,13 +11,21 @@
 ### Resident Evil / Tarkov-Style Inventory
 - A grid inventory where every item occupies its own irregular shape (a Tetris-style cell mask), not just a rectangle — a pistol is a small L, a shotgun a large L, first aid is 2x1, ammo and herbs are 1x1.
 - Items can be dragged to any free spot in the grid and rotated in place.
-- The inventory starts small (5x6) and is expanded by lootable upgrades: a Side Pouch (+1 column) and a Backpack (+2 rows, guaranteed somewhere in the Cargo Hold), up to a maximum of 8x10.
+- The inventory starts at 4x4 — small enough that you feel the walls of it immediately — and is expanded by lootable upgrades: a Side Pouch (+1 column) and a Backpack (+1 row, guaranteed somewhere in the Cargo Hold), up to a ceiling of 6x6. The pack is meant to stay uncomfortable; an upgrade is relief, not a solution.
 - Searching a crate, cabinet, locker, or footlocker opens a dedicated loot window with its own grid, separate from your inventory — just like Tarkov. Contents are generated the first time you search a container, reveal one at a time while you search, and stay put if you leave and come back. Drag items either direction between the container and your inventory, or double-click to quick-take/quick-use.
+
+### Crafting
+- **Drag one item onto another in your inventory to combine them.** There is no crafting screen — the grid is the interface, the way it is in Resident Evil. A valid pairing highlights the target in amber as you hold an item over it; selecting an item lists what it combines with, so nothing has to be memorised.
+- Two **Green Herbs** make a **Medical Kit**. Every recipe beats its inputs used separately — two herbs heal 30 each, and the kit heals 80 — but you pay for it in flexibility: a kit is one action you cannot split across two bad moments, and it is wasted if you use it at 90 health. Deciding when *not* to combine is the point.
+- **Gunpowder** and **Scrap Metal** are raw materials that do nothing on their own. Two Gunpowder become Shotgun Shells; Gunpowder and Scrap become 9mm Ammo; two Scrap become a Combat Knife — so a run that turns up no weapons still has a way out. They cost grid space now for a payoff later, which is the decision they exist to force.
+- Combining works both in the inventory window and while a container is open — including dragging an item straight out of the crate onto one in your bag, which is usually the natural move. The result always lands in your inventory, and a combination that has nowhere to go is refused outright rather than consuming the ingredients.
 
 ### Procedural Ship
 - Each run generates a two-deck ship: six rooms (Crew Bedroom, Galley, Medical Bay, Cargo Hold, Engine Room, Captain's Cabin), shuffled and split three-and-three across the lower and upper deck's corridors, connected by a stairwell — so which rooms neighbor each other and which deck the start room / Captain's Cabin land on both vary run to run.
 - Each corridor runs along the ship's hull: rooms open off one side, and the other side is windowed, with open water visible beyond the glass.
-- Loot, zombie placement, and room decoration are randomized per run.
+- Rooms are furnished as the rooms they claim to be, not scattered with interchangeable crates: bunks, wardrobes and nightstands in the crew bedroom; a stove, fridge, counters and a dining table in the galley; beds, medicine cabinets and supply shelves in the medical bay; an engine block, pipes, a workbench and toolboxes in the engine room. Beds, counters and wardrobes sit against the walls the way furniture actually does, and what is searchable follows from what the room is — so the ship reads as a place before it reads as a loot table.
+- Loot is scarce on purpose. Most containers hold one item and about a quarter hold nothing at all; an empty locker is what gives a full one any weight. Weapons you are already carrying are never rolled, since a second pistol is not a reward but a grid-space problem.
+- Zombie placement and the exact furniture layout are randomized per run.
 - The Captain's Key is always guaranteed to spawn somewhere reachable, so the ship is always solvable — it unlocks the Captain's Cabin, which is otherwise sealed.
 
 ### Survival Horror Combat
@@ -34,7 +42,7 @@
 ## Planned / Not Yet Implemented
 These are part of the original vision and not yet built:
 - Throwables and stealth as further alternatives to gunfights
-- Crafting (combining herbs, building ammo/medkits/traps)
+- Traps, as a further crafting branch beyond healing and ammo
 - Persistent meta-progression and unlockable starting loadouts across runs
 - Multiple escape routes (lifeboat, engine repair) beyond the radio
 
@@ -47,6 +55,7 @@ These are part of the original vision and not yet built:
 - **Tab** — open/close inventory
 - **M** — mute audio
 - In any grid (inventory or a loot window): **drag** an item to move it, **R** rotates the item while you're holding it, **double-click** an item to use/equip it (or quick-take it from a container)
+- In your inventory: **drag an item onto another** to combine them, if the pair has a recipe
 
 ## Technical Stack
 - Vite + React + TypeScript, client-only (no server)

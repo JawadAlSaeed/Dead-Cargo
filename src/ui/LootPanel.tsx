@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { InventoryItem, useInventory } from "../state/useInventory";
 import { GridSide, useGameStore } from "../state/useGameStore";
-import { canPlace } from "../game/grid";
+import { Cell, canPlace } from "../game/grid";
+import { combineTargetAt } from "../game/crafting";
 import { DragGhost, GridView, useDragController } from "./GridView";
 
 const REVEAL_MS = 550;
@@ -14,6 +15,7 @@ export function LootPanel() {
   const lootTarget = useGameStore((s) => s.lootTarget);
   const containers = useGameStore((s) => s.containers);
   const transferItem = useGameStore((s) => s.transferItem);
+  const craftItems = useGameStore((s) => s.craftItems);
   const closeLoot = useGameStore((s) => s.closeLoot);
   const useItem = useGameStore((s) => s.useItem);
   const equippedItemId = useGameStore((s) => s.equippedItemId);
@@ -74,6 +76,15 @@ export function LootPanel() {
     endDrag();
   };
 
+  // Crafting works here too, including straight out of the container — most
+  // combining happens while a crate is open, since that is where items arrive.
+  const findCombineTarget = (cell: Cell) => combineTargetAt(drag?.item ?? null, invItems, cell);
+
+  const onCombine = (target: InventoryItem) => {
+    if (drag) craftItems(drag.source, drag.item.id, target.id);
+    endDrag();
+  };
+
   const quickTake = (item: InventoryItem) => {
     if (searching) return;
     transferItem(objectId, "inventory", item.id);
@@ -130,10 +141,13 @@ export function LootPanel() {
             canDropAt={canDropAt}
             onDoubleClickItem={(item) => useItem(item.id)}
             equippedItemId={equippedItemId}
+            combineTargetAt={findCombineTarget}
+            onCombine={onCombine}
           />
           <div className="inv-actions">
             <span className="inv-hint">
-              Drag between grids · R rotates while holding · double-click takes / uses
+              Drag between grids · drop onto an item to combine · R rotates · double-click
+              takes / uses
             </span>
           </div>
         </div>

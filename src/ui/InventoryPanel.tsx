@@ -4,7 +4,8 @@
 import { useCallback, useState } from "react";
 import { InventoryItem, useInventory } from "../state/useInventory";
 import { GridSide, useGameStore } from "../state/useGameStore";
-import { canPlace } from "../game/grid";
+import { Cell, canPlace } from "../game/grid";
+import { combineTargetAt, combinesWith } from "../game/crafting";
 import { DragGhost, GridView, useDragController } from "./GridView";
 
 export function InventoryPanel() {
@@ -13,11 +14,13 @@ export function InventoryPanel() {
   const useItem = useGameStore((s) => s.useItem);
   const dropItem = useGameStore((s) => s.dropItem);
   const transferItem = useGameStore((s) => s.transferItem);
+  const craftItems = useGameStore((s) => s.craftItems);
   const equippedItemId = useGameStore((s) => s.equippedItemId);
   const setInventoryOpen = useGameStore((s) => s.setInventoryOpen);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = items.find((i) => i.id === selectedId) ?? null;
+  const selectedRecipes = selected ? combinesWith(selected.name) : [];
 
   const onClickItem = useCallback((item: InventoryItem) => {
     setSelectedId((cur) => (cur === item.id ? null : item.id));
@@ -34,6 +37,14 @@ export function InventoryPanel() {
   const onDropAt = (_side: GridSide, x: number, y: number) => {
     if (!drag) return;
     transferItem("inventory", "inventory", drag.item.id, { x, y, rotation: drag.rotation });
+    endDrag();
+  };
+
+  const findCombineTarget = (cell: Cell) => combineTargetAt(drag?.item ?? null, items, cell);
+
+  const onCombine = (target: InventoryItem) => {
+    if (drag) craftItems(drag.source, drag.item.id, target.id);
+    setSelectedId(null);
     endDrag();
   };
 
@@ -69,6 +80,8 @@ export function InventoryPanel() {
           onDoubleClickItem={(item) => useItem(item.id)}
           selectedId={selectedId}
           equippedItemId={equippedItemId}
+          combineTargetAt={findCombineTarget}
+          onCombine={onCombine}
         />
 
         <div className="inv-actions">
@@ -89,10 +102,19 @@ export function InventoryPanel() {
               >
                 Drop
               </button>
+              {/* Recipes are discoverable from the item itself — nothing to
+                  memorise and no separate crafting screen to go and read. */}
+              {selectedRecipes.length > 0 && (
+                <span className="inv-recipes">
+                  {selectedRecipes.map((r) => (
+                    <em key={r}>{r}</em>
+                  ))}
+                </span>
+              )}
             </>
           ) : (
             <span className="inv-hint">
-              Drag to move · R rotates while holding · double-click to use
+              Drag to move · drop onto an item to combine · R rotates · double-click to use
             </span>
           )}
         </div>

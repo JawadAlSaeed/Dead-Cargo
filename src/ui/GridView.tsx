@@ -134,6 +134,13 @@ interface GridViewProps {
   equippedItemId?: string | null;
   /** When set, only the first N items are visible (search reveal). */
   visibleCount?: number;
+  /**
+   * The item the held one would combine with if dropped on this cell, if any.
+   * Omitted by grids that don't support crafting (the loot windows), which is
+   * what keeps combining an inventory-only action.
+   */
+  combineTargetAt?: (cell: Cell) => InventoryItem | null;
+  onCombine?: (target: InventoryItem) => void;
 }
 
 export function GridView({
@@ -147,7 +154,9 @@ export function GridView({
   onDoubleClickItem,
   selectedId,
   equippedItemId,
-  visibleCount
+  visibleCount,
+  combineTargetAt,
+  onCombine
 }: GridViewProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<Cell | null>(null);
@@ -177,6 +186,13 @@ export function GridView({
         if (!drag) return;
         const c = cellFromEvent(e);
         if (!c) return;
+        // Combining is keyed off the cell actually under the cursor, not the
+        // held shape's origin — you point at what you want to combine with.
+        const combine = combineTargetAt?.(c);
+        if (combine && onCombine) {
+          onCombine(combine);
+          return;
+        }
         const t = dropTarget(c);
         onDropAt(side, t.x, t.y);
       }}
@@ -246,6 +262,25 @@ export function GridView({
       })}
 
       {drag && hover && (() => {
+        // Over a valid combine target, highlight that item instead of previewing
+        // a drop — the shape would not fit there anyway, and a red "no" would
+        // hide the fact that something better is on offer.
+        const combine = combineTargetAt?.(hover);
+        if (combine) {
+          return absCells(combine).map((c, i) => (
+            <div
+              key={`combine-${i}`}
+              className="grid-drop-preview"
+              style={{
+                left: c.x * CELL_PX,
+                top: c.y * CELL_PX,
+                width: CELL_PX,
+                height: CELL_PX,
+                background: "rgba(235, 170, 45, 0.55)"
+              }}
+            />
+          ));
+        }
         const t = dropTarget(hover);
         const ok = canDropAt(side, t.x, t.y);
         return rotateCells(drag.item.shape, drag.rotation).map((c, i) => (
