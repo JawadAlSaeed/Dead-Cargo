@@ -143,6 +143,74 @@ function pannedOutput(context: AudioContext, pan: number): AudioNode {
   return panner;
 }
 
+/** Pipe bomb: a long body of low noise under a deep drop, not a gunshot. */
+export function playExplosion(volume: number) {
+  const context = getCtx();
+  const now = context.currentTime;
+  const dur = 0.85;
+
+  const noise = context.createBufferSource();
+  noise.buffer = noiseBuffer(context, dur);
+  const filter = context.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(1800, now);
+  filter.frequency.exponentialRampToValueAtTime(90, now + dur);
+  const noiseGain = context.createGain();
+  noiseGain.gain.setValueAtTime(volume, now);
+  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  noise.connect(filter);
+  filter.connect(noiseGain);
+  noiseGain.connect(context.destination);
+  noise.start(now);
+  noise.stop(now + dur + 0.02);
+
+  const boom = context.createOscillator();
+  boom.type = "sine";
+  boom.frequency.setValueAtTime(120, now);
+  boom.frequency.exponentialRampToValueAtTime(24, now + 0.4);
+  const boomGain = context.createGain();
+  boomGain.gain.setValueAtTime(volume * 1.1, now);
+  boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+  boom.connect(boomGain);
+  boomGain.connect(context.destination);
+  boom.start(now);
+  boom.stop(now + 0.5);
+}
+
+/** Bear trap: two metal jaws meeting. Short, bright, nasty. */
+export function playTrapSnap(volume: number) {
+  const context = getCtx();
+  const now = context.currentTime;
+
+  const noise = context.createBufferSource();
+  noise.buffer = noiseBuffer(context, 0.09);
+  const filter = context.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.Q.setValueAtTime(2.4, now);
+  filter.frequency.setValueAtTime(2600, now);
+  filter.frequency.exponentialRampToValueAtTime(900, now + 0.08);
+  const gain = context.createGain();
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(context.destination);
+  noise.start(now);
+  noise.stop(now + 0.1);
+
+  const clang = context.createOscillator();
+  clang.type = "square";
+  clang.frequency.setValueAtTime(520, now);
+  clang.frequency.exponentialRampToValueAtTime(180, now + 0.12);
+  const clangGain = context.createGain();
+  clangGain.gain.setValueAtTime(volume * 0.5, now);
+  clangGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+  clang.connect(clangGain);
+  clangGain.connect(context.destination);
+  clang.start(now);
+  clang.stop(now + 0.15);
+}
+
 /**
  * A zombie noticing you, or reminding you it is still coming. Panned, because
  * once zombies are invisible outside the view cone this is the only thing

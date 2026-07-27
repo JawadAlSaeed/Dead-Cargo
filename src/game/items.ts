@@ -3,8 +3,9 @@
 // in the random pool — they're placed deterministically during generation.
 
 import { Cell } from "./grid";
+import { TrapKind } from "./traps";
 
-export type ItemType = "weapon" | "healing" | "ammo" | "key" | "upgrade" | "misc";
+export type ItemType = "weapon" | "healing" | "ammo" | "key" | "upgrade" | "misc" | "trap";
 
 export interface ItemBlueprint {
   name: string;
@@ -20,6 +21,9 @@ export interface ItemBlueprint {
     expand?: { w: number; h: number };
     // No ammoType, no reload — a short-range weapon swung on the same attack input.
     melee?: boolean;
+    // Deployable trap: using it puts it on the floor rather than consuming it
+    // for an immediate effect.
+    trapKind?: TrapKind;
   };
 }
 
@@ -102,6 +106,12 @@ export const MATERIAL_TYPES: Record<string, ItemBlueprint> = {
     type: "misc",
     shape: cellRect(1, 1),
     properties: {}
+  },
+  WIRING: {
+    name: "Wiring",
+    type: "misc",
+    shape: cellRect(1, 1),
+    properties: {}
   }
 };
 
@@ -115,6 +125,20 @@ export const CRAFTED_TYPES: Record<string, ItemBlueprint> = {
     type: "healing",
     shape: cellRect(2, 1),
     properties: { healAmount: 80 }
+  },
+  PIPE_BOMB: {
+    name: "Pipe Bomb",
+    type: "trap",
+    // A 1x2 pipe. Awkward enough in a 4x4 pack that carrying two is a real
+    // commitment rather than an afterthought.
+    shape: cellRect(1, 2),
+    properties: { trapKind: "pipeBomb" }
+  },
+  BEAR_TRAP: {
+    name: "Bear Trap",
+    type: "trap",
+    shape: cellRect(2, 1),
+    properties: { trapKind: "bearTrap" }
   }
 };
 
@@ -164,10 +188,12 @@ function pickRandom<T>(record: Record<string, T>): T {
 
 function rollItem(): ItemBlueprint {
   const roll = Math.random();
-  if (roll < 0.3) return pickRandom(AMMO_TYPES);
-  if (roll < 0.58) return pickRandom(HEALING_TYPES);
-  if (roll < 0.78) return pickRandom(MATERIAL_TYPES);
-  if (roll < 0.88) return pickRandom(WEAPON_TYPES);
+  if (roll < 0.28) return pickRandom(AMMO_TYPES);
+  if (roll < 0.54) return pickRandom(HEALING_TYPES);
+  // A little wider than before to absorb the third material: with Wiring added,
+  // an unchanged share would have made any single pairing much rarer.
+  if (roll < 0.8) return pickRandom(MATERIAL_TYPES);
+  if (roll < 0.89) return pickRandom(WEAPON_TYPES);
   if (roll < 0.94) return MELEE_TYPES.KNIFE;
   return Math.random() < 0.6 ? UPGRADE_TYPES.POUCH : UPGRADE_TYPES.BACKPACK;
 }

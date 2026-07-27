@@ -14,6 +14,7 @@ import { isUiOpen, useGameStore } from "../state/useGameStore";
 import { useAudio } from "../state/useAudio";
 import { ZOMBIE_KINDS, ZOMBIE_SIZE } from "../game/zombieKinds";
 import { CONTACT_REVEAL_MS, zombieVisibility } from "../game/vision";
+import { TRAPS } from "../game/traps";
 
 // Growls are the only warning you get for anything outside the view cone, so
 // they repeat for as long as a zombie is hunting you rather than firing once
@@ -87,6 +88,20 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     const { player } = world;
     const dist = getDistance(pos.x, pos.z, player.x, player.z);
 
+    // Walked into a trap? Checked before movement so it goes off on the step
+    // that reached it, not the one after.
+    const now0 = performance.now();
+    for (const trap of store.traps) {
+      if (trap.roomId !== room.id || now0 < trap.armedAt) continue;
+      if (getDistance(pos.x, pos.z, trap.position.x, trap.position.z) <= TRAPS[trap.kind].triggerRadius) {
+        store.springTrap(trap.id, spawn.id);
+        break;
+      }
+    }
+
+    // Caught in a bear trap: it thrashes where it stands, and cannot reach you.
+    const held = (useGameStore.getState().zombies[spawn.id]?.heldUntil ?? 0) > now0;
+
     const aggroed = dist < cfg.aggroRange;
     if (aggroed && !isUiOpen(store)) {
       const now = performance.now();
@@ -107,7 +122,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       nextGrowlAt.current = 0;
     }
 
-    if (dist < cfg.aggroRange && dist > cfg.attackRange * 0.6 && !isUiOpen(store)) {
+    if (!held && dist < cfg.aggroRange && dist > cfg.attackRange * 0.6 && !isUiOpen(store)) {
       let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
       let dz = ((player.z - pos.z) / dist) * spawn.speed * delta;
 
@@ -124,6 +139,7 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     }
 
     if (
+      !held &&
       dist < cfg.attackRange &&
       !isUiOpen(store) &&
       performance.now() - lastAttackAt.current > cfg.attackCooldownMs
@@ -145,14 +161,17 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
 
     const group = groupRef.current;
     if (group) {
-      group.position.set(pos.x, 0, pos.z);
-      group.rotation.y = Math.atan2(player.x - pos.x, player.z - pos.z);
+      // Held in a bear trap: rocks on the spot instead of standing calmly, so
+      // a pinned zombie reads as caught rather than as one that stopped working.
+      const thrash = held ? Math.sin(now0 / 45) * 0.09 : 0;
+      group.position.set(pos.x + thrash, 0, pos.z);
+      group.rotation.y = Math.atan2(player.x - pos.x, player.z - pos.z) + thrash * 1.6;
       // Shamble bob
       group.position.y = Math.abs(Math.sin(performance.now() / 180 + spawn.position.x)) * 0.06;
     }
     // Twitchy reaching-arm sway, always active for an unsettled, restless feel.
     const t = performance.now() / 1000;
-    const armSwing = Math.sin(t * cfg.armSwingSpeed + spawn.position.x) * 0.18;
+    const armSwing = Math.sin(t * (held ? cfg.armSwingSpeed * 3 : cfg.armSwingSpeed) + spawn.position.x) * (held ? 0.35 : 0.18);
     if (armLRef.current) armLRef.current.rotation.x = Math.PI / 2.4 + armSwing;
     if (armRRef.current) armRRef.current.rotation.x = Math.PI / 2.4 - armSwing;
   });
