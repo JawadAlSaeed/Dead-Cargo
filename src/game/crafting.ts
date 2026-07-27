@@ -40,6 +40,16 @@ export const RECIPES: Recipe[] = [
     inputs: ["Scrap Metal", "Scrap Metal"],
     output: MELEE_TYPES.KNIFE,
     note: "a way out of a run that turned up no weapons"
+  },
+  {
+    inputs: ["Gunpowder", "Wiring"],
+    output: CRAFTED_TYPES.PIPE_BOMB,
+    note: "kills what walks into it, and hurts you too"
+  },
+  {
+    inputs: ["Scrap Metal", "Wiring"],
+    output: CRAFTED_TYPES.BEAR_TRAP,
+    note: "pins one of them where it stands"
   }
 ];
 

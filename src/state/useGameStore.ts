@@ -16,6 +16,8 @@ import {
 } from "../game/items";
 import { canPlace, findPlacement } from "../game/grid";
 import { combinesWith, findRecipe } from "../game/crafting";
+import { DeployedTrap, TRAPS } from "../game/traps";
+import { getDistance } from "../game/collision";
 import { resetWorld, triggerShake, world } from "../game/world";
 import { InventoryItem, itemFromBlueprint, useInventory } from "./useInventory";
 import { useAudio } from "./useAudio";
@@ -25,6 +27,8 @@ export type GamePhase = "menu" | "playing" | "dead" | "won";
 interface ZombieLive {
   hp: number;
   alive: boolean;
+  /** Caught in a bear trap until this timestamp; it cannot move or attack. */
+  heldUntil?: number;
 }
 
 export interface ContainerState {
@@ -44,6 +48,8 @@ interface GameState {
   searched: Record<string, boolean>;
   unlockedDoors: Record<string, boolean>;
   zombies: Record<string, ZombieLive>;
+  /** Traps you have put down, in every room, for the whole run. */
+  traps: DeployedTrap[];
   containers: Record<string, ContainerState>;
   lootTarget: { objectId: string; firstOpen: boolean } | null;
   equippedItemId: string | null;
@@ -77,6 +83,12 @@ interface GameState {
    * inventory. Returns true if it happened.
    */
   craftItems: (sourceSide: GridSide, sourceId: string, targetId: string) => boolean;
+  /**
+   * Set off a trap. Called from the zombie frame loop when one walks into it —
+   * resolved here so a blast can hit every zombie in range, not just the one
+   * that triggered it.
+   */
+  springTrap: (trapId: string, zombieId: string) => void;
   interactRadio: () => void;
   hitZombie: (zombieId: string, damage: number) => void;
   fireShot: () => boolean;
@@ -138,6 +150,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   searched: {},
   unlockedDoors: {},
   zombies: {},
+  traps: [],
   containers: {},
   lootTarget: null,
   equippedItemId: null,
@@ -164,6 +177,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       searched: {},
       unlockedDoors: {},
       zombies,
+      traps: [],
       containers: {},
       lootTarget: null,
       equippedItemId: pistol?.id ?? null,
@@ -374,6 +388,73 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true;
   },
 
+  springTrap: (trapId, zombieId) => {
+    const { traps, zombies, phase } = get();
+    const trap = traps.find((t) => t.id === trapId);
+    if (!trap || phase !== "playing") return;
+    const cfg = TRAPS[trap.kind];
+
+    // Remove it first: a blast that damages several zombies would otherwise be
+    // re-entered by each of their frame callbacks before the state settles.
+    const remaining = traps.filter((t) => t.id !== trapId);
+
+    const hit: Record<string, ZombieLive> = { ...zombies };
+    if (cfg.holdMs > 0) {
+      const caught = hit[zombieId];
+      if (caught?.alive) {
+        const hp = caught.hp - cfg.damage;
+        hit[zombieId] = {
+          hp: Math.max(0, hp),
+          alive: hp > 0,
+          heldUntil: performance.now() + cfg.holdMs
+        };
+      }
+    } else {
+      // Everything standing in the blast, the trigger included.
+      for (const [id, live] of Object.entries(zombies)) {
+        if (!live.alive) continue;
+        const pos = world.zombiePos.get(id);
+        if (!pos) continue;
+        if (getDistance(pos.x, pos.z, trap.position.x, trap.position.z) > cfg.blastRadius) continue;
+        const hp = live.hp - cfg.damage;
+        hit[id] = { ...live, hp: Math.max(0, hp), alive: hp > 0 };
+      }
+    }
+
+    set({ traps: remaining, zombies: hit });
+
+    if (cfg.selfDamage > 0) {
+      const dist = getDistance(
+        world.player.x,
+        world.player.z,
+        trap.position.x,
+        trap.position.z
+      );
+      if (dist <= cfg.blastRadius) {
+        world.lastHit = {
+          angle: Math.atan2(trap.position.x - world.player.x, trap.position.z - world.player.z),
+          at: performance.now()
+        };
+        get().damagePlayer(cfg.selfDamage);
+      }
+    }
+
+    if (cfg.holdMs > 0) {
+      useAudio.getState().playTrapSnap();
+      triggerShake(0.18, 160);
+      get().setMessage(`${cfg.label} snaps shut.`);
+    } else {
+      useAudio.getState().playExplosion();
+      triggerShake(0.9, 460);
+      const killed = Object.entries(hit).filter(
+        ([id, live]) => !live.alive && zombies[id]?.alive
+      ).length;
+      get().setMessage(
+        killed > 0 ? `${cfg.label} — ${killed} down.` : `${cfg.label} detonates.`
+      );
+    }
+  },
+
   interactRadio: () => {
     useAudio.getState().playSuccess();
     useAudio.getState().stopMusic();
@@ -468,6 +549,44 @@ export const useGameStore = create<GameState>((set, get) => ({
         useAudio.getState().playSuccess();
         const grown = useInventory.getState().gridSize;
         setMessage(`${item.name} attached — inventory is now ${grown.width}×${grown.height}.`);
+        break;
+      }
+      case "trap": {
+        const kind = item.properties.trapKind;
+        if (!kind) return;
+        const { currentRoomId, traps } = get();
+        const cfg = TRAPS[kind];
+        // Don't let them be stacked on one square — a pile of pipe bombs on a
+        // single tile is not a tactic, it's an exploit.
+        const crowded = traps.some(
+          (t) =>
+            t.roomId === currentRoomId &&
+            getDistance(t.position.x, t.position.z, world.player.x, world.player.z) < 1.4
+        );
+        if (crowded) {
+          setMessage("There's already a trap here.");
+          return;
+        }
+        inv.removeItem(itemId);
+        set({
+          traps: [
+            ...traps,
+            {
+              id: `trap-${itemId}`,
+              kind,
+              roomId: currentRoomId,
+              position: { x: world.player.x, z: world.player.z },
+              armedAt: performance.now() + cfg.armDelayMs
+            }
+          ],
+          inventoryOpen: false
+        });
+        useAudio.getState().playReloadClick();
+        setMessage(
+          cfg.selfDamage > 0
+            ? `${cfg.label} set — it arms in a moment, and it doesn't know whose side you're on.`
+            : `${cfg.label} set.`
+        );
         break;
       }
       case "key":

@@ -9,6 +9,7 @@ import { world } from "../game/world";
 import { RoomView } from "./RoomView";
 import { Player } from "./Player";
 import { Zombies } from "./Zombies";
+import { Traps } from "./Traps";
 
 function FollowCamera() {
   const { camera } = useThree();
@@ -49,6 +50,7 @@ export function GameScene() {
       {/* key on room id so per-room state (textures, memos) resets cleanly */}
       <group key={room.id}>
         <RoomView room={room} />
+        <Traps roomId={room.id} />
         <Zombies room={room} />
         <Player room={room} />
       </group>

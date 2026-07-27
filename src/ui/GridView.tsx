@@ -15,6 +15,7 @@ export const TYPE_COLORS: Record<string, string> = {
   ammo: "#6b632d",
   key: "#8a7420",
   upgrade: "#4a3d75",
+  trap: "#8a4a20",
   misc: "#44484f"
 };
 

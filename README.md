@@ -17,7 +17,13 @@
 ### Crafting
 - **Drag one item onto another in your inventory to combine them.** There is no crafting screen — the grid is the interface, the way it is in Resident Evil. A valid pairing highlights the target in amber as you hold an item over it; selecting an item lists what it combines with, so nothing has to be memorised.
 - Two **Green Herbs** make a **Medical Kit**. Every recipe beats its inputs used separately — two herbs heal 30 each, and the kit heals 80 — but you pay for it in flexibility: a kit is one action you cannot split across two bad moments, and it is wasted if you use it at 90 health. Deciding when *not* to combine is the point.
-- **Gunpowder** and **Scrap Metal** are raw materials that do nothing on their own. Two Gunpowder become Shotgun Shells; Gunpowder and Scrap become 9mm Ammo; two Scrap become a Combat Knife — so a run that turns up no weapons still has a way out. They cost grid space now for a payoff later, which is the decision they exist to force.
+- **Gunpowder**, **Scrap Metal** and **Wiring** are raw materials that do nothing on their own. Two Gunpowder become Shotgun Shells; Gunpowder and Scrap become 9mm Ammo; two Scrap become a Combat Knife — so a run that turns up no weapons still has a way out. They cost grid space now for a payoff later, which is the decision they exist to force.
+
+### Traps
+- Wiring turns the other two materials into things you put on the floor: **Gunpowder + Wiring** makes a **Pipe Bomb**, **Scrap Metal + Wiring** makes a **Bear Trap**. Use one from your inventory and the courier sets it down where they stand.
+- A trap is the opposite trade to a gun. A gun spends ammo on a threat you can see, now; a trap spends grid space and a guess about where things will come from, ahead of time — so it pays off for knowing the ship, which is the knowledge a run accumulates anyway.
+- The two are not two flavours of the same thing. The **Pipe Bomb** does heavy damage to everything in a radius, arms after a short delay so it can't be dropped at your feet as a panic button, and **it does not care whose side you are on** — its blast radius is drawn on the floor so you can see exactly where not to stand. The **Bear Trap** barely scratches anything, but pins one zombie where it stands for a few seconds and is completely safe to walk past. One removes a threat; the other buys you time.
+- Traps stay where you left them for the rest of the run, including in rooms you have walked out of.
 - Combining works both in the inventory window and while a container is open — including dragging an item straight out of the crate onto one in your bag, which is usually the natural move. The result always lands in your inventory, and a combination that has nowhere to go is refused outright rather than consuming the ingredients.
 
 ### Procedural Ship
@@ -42,7 +48,6 @@
 ## Planned / Not Yet Implemented
 These are part of the original vision and not yet built:
 - Throwables and stealth as further alternatives to gunfights
-- Traps, as a further crafting branch beyond healing and ammo
 - Persistent meta-progression and unlockable starting loadouts across runs
 - Multiple escape routes (lifeboat, engine repair) beyond the radio
 
