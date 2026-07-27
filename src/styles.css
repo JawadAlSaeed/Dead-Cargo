@@ -247,6 +247,22 @@
   transform: translateY(-50%);
 }
 
+/* ---------- sneak indicator ---------- */
+
+.sneak-badge {
+  position: absolute;
+  left: 50%;
+  bottom: 11%;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  font-size: 12px;
+  letter-spacing: 4px;
+  color: #8fb4c8;
+  text-shadow: 0 1px 3px #000;
+  transition: opacity 120ms linear;
+}
+
 /* ---------- directional damage arc ---------- */
 
 /* Rotates about screen centre; the span rides at the top of that circle, so

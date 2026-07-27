@@ -18,7 +18,8 @@ import { canPlace, findPlacement } from "../game/grid";
 import { combinesWith, findRecipe } from "../game/crafting";
 import { DeployedTrap, TRAPS } from "../game/traps";
 import { getDistance } from "../game/collision";
-import { resetWorld, triggerShake, world } from "../game/world";
+import { emitNoise, resetWorld, triggerShake, world } from "../game/world";
+import { NOISE } from "../game/senses";
 import { InventoryItem, itemFromBlueprint, useInventory } from "./useInventory";
 import { useAudio } from "./useAudio";
 
@@ -223,7 +224,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     world.player.x = door.targetPosition.x;
     world.player.z = door.targetPosition.z;
     world.zombiePos.clear();
+    // Perception resets with position: leave a room and come back and they have
+    // settled, the same way their positions already reset.
+    world.zombieSense.clear();
+    world.noises.length = 0;
     set({ currentRoomId: door.targetRoomId });
+    // Coming through a door is not silent, but it is quiet enough that only
+    // something standing right there will care — and easing it open while
+    // sneaking barely registers at all.
+    emitNoise(
+      door.targetPosition.x,
+      door.targetPosition.z,
+      world.sneaking ? NOISE.door * 0.35 : NOISE.door,
+      door.targetRoomId
+    );
     if (door.kind === "stairs") {
       const fromFloor = ship.rooms[currentRoomId]?.floor;
       const toFloor = ship.rooms[door.targetRoomId]?.floor;
@@ -439,6 +453,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    // Traps make a racket where they are, not where you are — which is what
+    // makes a pipe bomb across the room a distraction as well as a weapon.
+    emitNoise(
+      trap.position.x,
+      trap.position.z,
+      cfg.holdMs > 0 ? NOISE.bearTrap : NOISE.pipeBomb,
+      trap.roomId
+    );
+
     if (cfg.holdMs > 0) {
       useAudio.getState().playTrapSnap();
       triggerShake(0.18, 160);
@@ -507,6 +530,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ ammoLoaded: ammoLoaded + (box.properties.ammoCount ?? 0) });
     setMessage(`Reloaded (+${box.properties.ammoCount}).`);
     useAudio.getState().playReloadClick();
+    emitNoise(world.player.x, world.player.z, NOISE.reload, get().currentRoomId);
   },
 
   useItem: (itemId) => {

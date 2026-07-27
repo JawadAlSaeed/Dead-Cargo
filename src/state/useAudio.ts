@@ -10,7 +10,8 @@ interface AudioState {
   playDryFire: () => void;
   playMeleeSwing: () => void;
   playReloadClick: () => void;
-  playFootstep: () => void;
+  /** `soft` for sneaking — quieter, to match emitting no noise event. */
+  playFootstep: (soft?: boolean) => void;
   playExplosion: () => void;
   playTrapSnap: () => void;
   /** `pan` is -1 (hard left) to 1 (hard right), relative to the courier. */
@@ -54,8 +55,8 @@ export const useAudio = create<AudioState>((set, get) => ({
   playReloadClick: () => {
     if (!get().muted) sfx.playReloadClick(0.25);
   },
-  playFootstep: () => {
-    if (!get().muted) sfx.playFootstep(0.18);
+  playFootstep: (soft = false) => {
+    if (!get().muted) sfx.playFootstep(soft ? 0.07 : 0.18);
   },
   playExplosion: () => {
     if (!get().muted) sfx.playExplosion(0.5);

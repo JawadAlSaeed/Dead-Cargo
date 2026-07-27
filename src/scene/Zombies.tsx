@@ -15,6 +15,19 @@ import { useAudio } from "../state/useAudio";
 import { ZOMBIE_KINDS, ZOMBIE_SIZE } from "../game/zombieKinds";
 import { CONTACT_REVEAL_MS, zombieVisibility } from "../game/vision";
 import { TRAPS } from "../game/traps";
+import {
+  INVESTIGATE_DURATION_MS,
+  INVESTIGATE_SPEED,
+  LOUD_ENOUGH_TO_TURN,
+  NOISE_AWARENESS_CEILING,
+  SEARCH_DURATION_MS,
+  SUSPICIOUS_AT,
+  awarenessDecay,
+  awarenessGain,
+  canSee,
+  freshSense,
+  noiseAwareness
+} from "../game/senses";
 
 // Growls are the only warning you get for anything outside the view cone, so
 // they repeat for as long as a zombie is hunting you rather than firing once
@@ -102,46 +115,152 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
     // Caught in a bear trap: it thrashes where it stands, and cannot reach you.
     const held = (useGameStore.getState().zombies[spawn.id]?.heldUntil ?? 0) > now0;
 
-    const aggroed = dist < cfg.aggroRange;
-    if (aggroed && !isUiOpen(store)) {
-      const now = performance.now();
-      if (now >= nextGrowlAt.current) {
-        // Closeness drives both loudness and cadence, so a thing behind you
-        // gets harder to ignore as it closes rather than announcing itself
-        // once and then stalking you in silence.
+    let sense = world.zombieSense.get(spawn.id);
+    if (!sense) {
+      sense = freshSense(Math.random() * Math.PI * 2);
+      world.zombieSense.set(spawn.id, sense);
+    }
+
+    const uiOpen = isUiOpen(store);
+    const sight = uiOpen
+      ? { visible: false, distance: dist, bearing: 0 }
+      : canSee(sense, pos, player, room);
+
+    // --- Hearing: anything new and close enough is worth going to look at ---
+    if (!uiOpen) {
+      for (const noise of world.noises) {
+        if (noise.at <= sense.lastHeardAt || noise.roomId !== room.id) continue;
+        if (getDistance(pos.x, pos.z, noise.x, noise.z) > noise.radius) continue;
+        sense.investigate = { x: noise.x, z: noise.z };
+        // Capped so no amount of noise alone tips into hunting — it has to see
+        // you to commit.
+        sense.awareness = Math.min(
+          NOISE_AWARENESS_CEILING,
+          sense.awareness +
+            noiseAwareness(noise.radius, getDistance(pos.x, pos.z, noise.x, noise.z))
+        );
+        // Only something genuinely loud makes it whip round. A door easing open
+        // or a footstep gets noted and wandered towards; if it snapped its head
+        // to every small sound it would end up staring straight at you, which
+        // is the instant-alert problem wearing a disguise.
+        if (noise.radius >= LOUD_ENOUGH_TO_TURN) {
+          sense.facing = Math.atan2(noise.x - pos.x, noise.z - pos.z);
+        }
+      }
+      sense.lastHeardAt = now0;
+    }
+
+    // --- Sight ---
+    if (sight.visible) {
+      sense.awareness = Math.min(
+        1,
+        sense.awareness + awarenessGain(sight.distance, world.sneaking, delta)
+      );
+      sense.investigate = { x: player.x, z: player.z };
+      // Turn to look at what it has noticed.
+      sense.facing += Math.max(-6 * delta, Math.min(6 * delta,
+        ((sight.bearing - sense.facing + Math.PI * 3) % (Math.PI * 2)) - Math.PI));
+    } else if (!uiOpen) {
+      sense.awareness = Math.max(0, sense.awareness - awarenessDecay(delta));
+    }
+
+    // --- State transitions ---
+    const wasHunting = sense.state === "hunting";
+    if (sense.awareness >= 1) {
+      // Committed. It has you.
+      sense.state = "hunting";
+      sense.investigate = { x: player.x, z: player.z };
+      sense.searchUntil = 0;
+    } else if (sense.state === "hunting") {
+      // Lost it. Head for where you were last and cast about there.
+      sense.state = "searching";
+      sense.searchUntil = now0 + SEARCH_DURATION_MS;
+    } else if (sense.state === "dormant" && sense.awareness >= SUSPICIOUS_AT && sense.investigate) {
+      // Roused. Commit to going and looking, on a timer rather than on the
+      // awareness value — otherwise the decay pulls it back to idle before it
+      // has taken more than a step.
+      sense.state = "suspicious";
+      sense.searchUntil = now0 + INVESTIGATE_DURATION_MS;
+    } else if (sense.state === "suspicious" && sense.awareness >= SUSPICIOUS_AT) {
+      // Something roused it again while it was already on its way — reset the
+      // clock so a trail of noises keeps it interested.
+      sense.searchUntil = Math.max(sense.searchUntil, now0 + INVESTIGATE_DURATION_MS);
+    } else if (
+      (sense.state === "suspicious" || sense.state === "searching") &&
+      now0 > sense.searchUntil
+    ) {
+      sense.state = "dormant";
+      sense.investigate = null;
+      sense.awareness = 0;
+    }
+
+    // --- Growls, now tied to state rather than raw distance ---
+    const alerted = sense.state === "hunting" || sense.state === "suspicious";
+    if (alerted && !uiOpen) {
+      if (now0 >= nextGrowlAt.current) {
         const closeness = 1 - Math.min(1, dist / cfg.aggroRange);
         const volume = GROWL_VOLUME_FAR + (GROWL_VOLUME_NEAR - GROWL_VOLUME_FAR) * closeness;
         const pan = Math.max(-1, Math.min(1, (pos.x - player.x) / GROWL_PAN_RANGE));
-        useAudio.getState().playGrowl(volume, pan);
+        useAudio.getState().playGrowl(volume * (sense.state === "hunting" ? 1 : 0.6), pan);
         const gap = GROWL_GAP_FAR_MS - (GROWL_GAP_FAR_MS - GROWL_GAP_NEAR_MS) * closeness;
-        // Jitter keeps a pack from falling into lockstep and sounding metronomic.
-        nextGrowlAt.current = now + gap * (0.75 + Math.random() * 0.5);
+        nextGrowlAt.current = now0 + gap * (0.75 + Math.random() * 0.5);
+      }
+      // The moment it commits, it barks regardless of the timer — that bark is
+      // the tell that your window to back out has just closed.
+      if (!wasHunting && sense.state === "hunting") {
+        useAudio.getState().playGrowl(GROWL_VOLUME_NEAR, Math.max(-1, Math.min(1, (pos.x - player.x) / GROWL_PAN_RANGE)));
+        nextGrowlAt.current = now0 + GROWL_GAP_NEAR_MS;
       }
     } else {
-      // Lose interest and the next sighting growls immediately.
       nextGrowlAt.current = 0;
     }
 
-    if (!held && dist < cfg.aggroRange && dist > cfg.attackRange * 0.6 && !isUiOpen(store)) {
-      let dx = ((player.x - pos.x) / dist) * spawn.speed * delta;
-      let dz = ((player.z - pos.z) / dist) * spawn.speed * delta;
+    // --- Movement ---
+    const target =
+      sense.state === "hunting"
+        ? { x: player.x, z: player.z }
+        : sense.investigate;
+    const speedScale = sense.state === "hunting" ? 1 : INVESTIGATE_SPEED;
+    const stopWithin = sense.state === "hunting" ? cfg.attackRange * 0.6 : 0.6;
 
-      // Light separation so zombies don't stack into one another.
-      for (const [otherId, other] of world.zombiePos) {
-        if (otherId === spawn.id || !store.zombies[otherId]?.alive) continue;
-        const d = getDistance(pos.x, pos.z, other.x, other.z);
-        if (d > 0.01 && d < 0.9) {
-          dx += ((pos.x - other.x) / d) * 0.6 * delta;
-          dz += ((pos.z - other.z) / d) * 0.6 * delta;
+    if (!held && !uiOpen && target && sense.state !== "dormant") {
+      const toTarget = getDistance(pos.x, pos.z, target.x, target.z);
+      if (toTarget > stopWithin) {
+        let dx = ((target.x - pos.x) / toTarget) * spawn.speed * speedScale * delta;
+        let dz = ((target.z - pos.z) / toTarget) * spawn.speed * speedScale * delta;
+
+        // Light separation so zombies don't stack into one another.
+        for (const [otherId, other] of world.zombiePos) {
+          if (otherId === spawn.id || !store.zombies[otherId]?.alive) continue;
+          const d = getDistance(pos.x, pos.z, other.x, other.z);
+          if (d > 0.01 && d < 0.9) {
+            dx += ((pos.x - other.x) / d) * 0.6 * delta;
+            dz += ((pos.z - other.z) / d) * 0.6 * delta;
+          }
+        }
+        moveWithCollision(pos, dx, dz, ZOMBIE_SIZE, colliders);
+        // Face where it is going.
+        if (Math.abs(dx) + Math.abs(dz) > 1e-5) sense.facing = Math.atan2(dx, dz);
+      } else {
+        // Reached the spot and found nothing — look around while the clock runs.
+        if (now0 >= sense.nextGlanceAt) {
+          sense.facing += (Math.random() - 0.5) * 2.2;
+          sense.nextGlanceAt = now0 + 700 + Math.random() * 900;
         }
       }
-      moveWithCollision(pos, dx, dz, ZOMBIE_SIZE, colliders);
+    } else if (sense.state === "dormant" && !uiOpen && !held) {
+      // Idle drift, so a dormant zombie is not a statue staring at one wall.
+      if (now0 >= sense.nextGlanceAt) {
+        sense.facing += (Math.random() - 0.5) * 1.8;
+        sense.nextGlanceAt = now0 + 1600 + Math.random() * 2400;
+      }
     }
 
     if (
       !held &&
+      sense.state === "hunting" &&
       dist < cfg.attackRange &&
-      !isUiOpen(store) &&
+      !uiOpen &&
       performance.now() - lastAttackAt.current > cfg.attackCooldownMs
     ) {
       lastAttackAt.current = performance.now();
@@ -165,7 +284,9 @@ function Zombie({ spawn, room }: { spawn: ZombieSpawn; room: Room }) {
       // a pinned zombie reads as caught rather than as one that stopped working.
       const thrash = held ? Math.sin(now0 / 45) * 0.09 : 0;
       group.position.set(pos.x + thrash, 0, pos.z);
-      group.rotation.y = Math.atan2(player.x - pos.x, player.z - pos.z) + thrash * 1.6;
+      // Faces where it is actually looking, not always at the player — the
+      // whole sense model depends on you being able to read which way it faces.
+      group.rotation.y = sense.facing + thrash * 1.6;
       // Shamble bob
       group.position.y = Math.abs(Math.sin(performance.now() / 180 + spawn.position.x)) * 0.06;
     }
