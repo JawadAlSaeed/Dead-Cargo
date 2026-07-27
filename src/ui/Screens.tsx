@@ -14,11 +14,15 @@ export function MenuScreen() {
           reach the <strong>Captain's Cabin</strong>, and radio for rescue.
         </p>
         <ul className="controls-list">
-          <li><b>WASD</b> — move</li>
+          <li><b>WASD</b> — move &nbsp; <b>Shift</b> (hold) — sneak: slower, but silent</li>
           <li><b>Mouse</b> — aim (you always face the cursor) &nbsp; <b>Left mouse</b> — attack</li>
           <li><b>F</b> — search containers &amp; use the radio</li>
           <li><b>R</b> — reload &nbsp; <b>Tab</b> — inventory &nbsp; <b>M</b> — mute</li>
-          <li>In grids: <b>drag</b> to move, <b>R</b> rotates the held item</li>
+          <li>In grids: <b>drag</b> to move, <b>R</b> rotates, <b>drop onto an item</b> to combine</li>
+          <li>
+            They hunt by sight and sound. Stay out of the cone they're facing, put
+            something tall between you, and remember that a gunshot carries.
+          </li>
         </ul>
       </div>
       <button className="btn btn-big" onClick={startGame}>

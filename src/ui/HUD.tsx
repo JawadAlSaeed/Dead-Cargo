@@ -50,6 +50,32 @@ function Crosshair() {
 const DAMAGE_ARC_MS = 1100;
 
 /**
+ * Sneak indicator. Held-key modes need to be visible or you lose track of which
+ * one you are in — and here that costs you half your speed without telling you.
+ */
+function SneakBadge() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let raf = 0;
+    const tick = () => {
+      const el = ref.current;
+      if (el) {
+        const on = world.sneaking && !isUiOpen(useGameStore.getState());
+        el.style.opacity = on ? "1" : "0";
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <div ref={ref} className="sneak-badge" aria-hidden="true">
+      SNEAKING
+    </div>
+  );
+}
+
+/**
  * Arc at the screen edge pointing at whatever just hit you.
  *
  * With zombies invisible outside the view cone, damage otherwise arrives from
@@ -133,6 +159,7 @@ export function HUD() {
       )}
       <Crosshair />
       <DamageArc />
+      <SneakBadge />
 
       <div className="hud-top">
         <div className="hud-room">{roomLabel}</div>
@@ -158,7 +185,7 @@ export function HUD() {
           </div>
         </div>
         <div className="hud-hints">
-          WASD move · LMB attack · F search · R reload · Tab inventory
+          WASD move · Shift sneak · LMB attack · F search · R reload · Tab inventory
         </div>
       </div>
     </div>

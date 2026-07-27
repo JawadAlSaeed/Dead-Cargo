@@ -36,6 +36,14 @@
 
 ### Survival Horror Combat
 - Three zombie types with distinct behavior: the standard Shambler, a fast low-health Runner with a wide detection range, and a slow high-health Brute that hits hard. They chase the player on sight and deal damage on contact.
+### Sight, Sound and Sneaking
+- **Zombies have senses of their own, and they are not omniscient.** They see inside a 110° cone they actually face — so you can read which way one is looking — out to 7 metres while dormant and 11 once something has put them on edge. Anything tall enough to hide behind breaks that sight: wardrobes, lockers, fridges, shelving and the engine block are cover; counters, tables and pallets are not.
+- **Being noticed takes time.** Detection fills rather than flips — about 0.7s of unbroken sight at point-blank range, 1.6s across a room, 2.4s at the limit of vision, and roughly double all of that if you are sneaking. That gap between being seen and being hunted is the whole game of moving carefully, and the growl a zombie barks the moment it commits is your signal that the gap has closed.
+- **Noise happens at a place, and they investigate the place — not you.** A gunshot carries 22 metres, a shotgun 30, a pipe bomb 40; a footstep carries 3.5, a door 2.5, and the Combat Knife barely 2, which is what makes it worth carrying. No amount of noise alone will make a zombie hunt you — it can only send one to look, and it still has to lay eyes on you to commit. That is what makes misdirection possible: fire at a wall, or let a pipe bomb go off across the room, and the room walks toward the sound instead of toward you.
+- **Hold Shift to sneak.** You move at 45% speed and emit no noise at all — no footsteps, and doors ease open instead of banging. Walking into a room used to wake every zombie in it 97% of the time; now nothing is hunting you at the moment you step through, and creeping in triples how long you have before anything commits.
+- **They lose you properly too.** A zombie that loses sight heads for where you were last, casts about there for a few seconds, then goes back to idling — instead of forgetting you the instant you cross an invisible line.
+
+### Survival Horror Combat (continued)
 - **You can only see zombies in the wedge you are facing.** The ship itself — layout, furniture, containers — is always visible, so you never get lost or have to hunt for loot in the dark. The undead are the exception: outside a 75° cone in front of the courier they vanish completely, and since aiming follows the cursor, where you look is a decision with a cost. Looking down the corridor means not looking at the door behind you. Two things keep it fair rather than merely punishing: anything close enough to touch is felt regardless of facing, and anything that hits you (or that you hit) is revealed for a moment, so no damage ever arrives from nowhere. Everything else, you hear before you see.
 - Aiming is continuous — the courier always faces the cursor — and the left mouse button attacks. Firearms (pistol, shotgun) consume ammo and need reloading (pulls matching ammo from your inventory); the Combat Knife is a silent, close-range melee weapon that needs neither.
 - Screen shake, a muzzle flash, a hit-reactive crosshair, and procedurally synthesized gunfire/melee/footstep/growl sound effects give combat feedback without any external audio assets.
@@ -47,12 +55,14 @@
 
 ## Planned / Not Yet Implemented
 These are part of the original vision and not yet built:
-- Throwables and stealth as further alternatives to gunfights
+- Throwables — something to actually lob across a room, now that noise is a mechanic
+- Zombie pathfinding: they walk straight at what they are heading for and slide along obstacles, so an investigating zombie can snag on a crate rather than going around it
 - Persistent meta-progression and unlockable starting loadouts across runs
 - Multiple escape routes (lifeboat, engine repair) beyond the radio
 
 ## Controls
 - **WASD** — move
+- **Shift** (hold) — sneak: 45% speed, completely silent
 - **Mouse** — aim; the courier always faces the cursor
 - **Left mouse** — attack with the equipped weapon
 - **F** — search containers / use the radio

@@ -8,7 +8,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { world, triggerShake } from "../game/world";
+import { world, triggerShake, emitNoise } from "../game/world";
+import { NOISE } from "../game/senses";
 import { moveWithCollision, roomColliders } from "../game/movement";
 import { getDistance, isPointInRect } from "../game/collision";
 import { Room } from "../game/types";
@@ -27,6 +28,8 @@ const INTERACT_RANGE = 1.8;
 const MUZZLE_FLASH_MS = 60;
 const SWING_DURATION_MS = 160;
 const FOOTSTEP_INTERVAL_MS = 340;
+/** Sneaking trades speed for silence. Slow enough to feel like a decision. */
+const SNEAK_SPEED_SCALE = 0.45;
 
 // Reused across frames so aiming allocates nothing per frame.
 const aimRaycaster = new THREE.Raycaster();
@@ -39,7 +42,7 @@ function currentWeapon() {
   return useInventory.getState().items.find((i) => i.id === equippedItemId);
 }
 
-function tryAttack() {
+function tryAttack(roomId: string) {
   const store = useGameStore.getState();
   if (!store.equippedItemId) {
     store.setMessage("No weapon equipped — open inventory (Tab).");
@@ -56,6 +59,8 @@ function tryAttack() {
   if (isMelee) {
     useAudio.getState().playMeleeSwing();
     triggerShake(0.06, 80);
+    // Near enough to silent — the reason to carry a knife at all.
+    emitNoise(world.player.x, world.player.z, NOISE.melee, roomId);
   } else {
     if (!store.fireShot()) {
       useAudio.getState().playDryFire();
@@ -63,6 +68,8 @@ function tryAttack() {
     }
     useAudio.getState().playGunshot(big);
     triggerShake(big ? 0.16 : 0.08, big ? 140 : 90);
+    // A gunshot pulls the whole room, and then some, toward where you fired it.
+    emitNoise(world.player.x, world.player.z, big ? NOISE.shotgun : NOISE.pistol, roomId);
   }
 
   // Hitscan (or a short-range swing): nearest living zombie close to the aim ray.
@@ -152,7 +159,7 @@ export function Player({ room }: { room: Room }) {
     const mouseDown = (e: MouseEvent) => {
       const store = useGameStore.getState();
       if (store.phase !== "playing" || isUiOpen(store)) return;
-      if (e.button === 0) tryAttack();
+      if (e.button === 0) tryAttack(room.id);
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -209,17 +216,24 @@ export function Player({ room }: { room: Room }) {
     if (keys["KeyD"] || keys["ArrowRight"]) dx += 1;
     const isMoving = dx !== 0 || dz !== 0;
     world.moving = isMoving;
+    const sneaking = !!(keys["ShiftLeft"] || keys["ShiftRight"]);
+    world.sneaking = sneaking;
     if (isMoving) {
       const len = Math.hypot(dx, dz);
-      dx = (dx / len) * PLAYER_SPEED * delta;
-      dz = (dz / len) * PLAYER_SPEED * delta;
+      const speed = PLAYER_SPEED * (sneaking ? SNEAK_SPEED_SCALE : 1);
+      dx = (dx / len) * speed * delta;
+      dz = (dz / len) * speed * delta;
       moveWithCollision(player, dx, dz, PLAYER_SIZE, colliders);
 
-      strideRef.current += delta * 9;
+      strideRef.current += delta * (sneaking ? 4.5 : 9);
       const now = performance.now();
-      if (now - lastFootstepAt.current > FOOTSTEP_INTERVAL_MS) {
+      const interval = sneaking ? FOOTSTEP_INTERVAL_MS * 1.9 : FOOTSTEP_INTERVAL_MS;
+      if (now - lastFootstepAt.current > interval) {
         lastFootstepAt.current = now;
-        useAudio.getState().playFootstep();
+        useAudio.getState().playFootstep(sneaking);
+        // Sneaking emits no noise event at all. That is the entire mechanic:
+        // walking pulls zombies toward where you are, creeping does not.
+        if (!sneaking) emitNoise(player.x, player.z, NOISE.footstep, room.id);
       }
     }
 

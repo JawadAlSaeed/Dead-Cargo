@@ -6,43 +6,14 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useTexture } from "@react-three/drei";
 import type { Door, Room, RoomObject, Wall as WallData } from "../game/types";
+import { objectHeight } from "../game/furniture";
 import { useGameStore } from "../state/useGameStore";
 
 const WALL_HEIGHT = 2.4;
 const OCEAN_DEPTH = 70;
 
-const OBJECT_HEIGHTS: Record<string, number> = {
-  // Sleeping
-  bunk: 0.5,
-  medBed: 0.5,
-  nightstand: 0.6,
-  // Storage — the tall ones read as a silhouette even unlit
-  wardrobe: 2.0,
-  tallLocker: 1.9,
-  fridge: 1.9,
-  cabinet: 1.5,
-  medCabinet: 1.5,
-  bookshelf: 1.8,
-  shelving: 1.8,
-  supplyShelf: 1.7,
-  footlocker: 0.5,
-  toolbox: 0.45,
-  crate: 1.0,
-  // Surfaces
-  counter: 0.95,
-  workbench: 0.95,
-  stove: 0.9,
-  diningTable: 0.8,
-  deskSmall: 0.78,
-  desk: 0.9,
-  chair: 0.9,
-  // Bulk
-  engineBlock: 1.6,
-  pipes: 2.0,
-  barrel: 1.1,
-  pallet: 0.22,
-  radio: 0.4
-};
+// Heights live in game/furniture.ts — they drive line-of-sight now, not just
+// how tall a box is drawn.
 
 /** Storage units get a seam down the front so they read as doors, not blocks. */
 const DOORED = new Set(["wardrobe", "tallLocker", "fridge", "cabinet", "medCabinet"]);
@@ -111,7 +82,7 @@ function Floor({ room }: { room: Room }) {
 }
 
 function ObjectMesh({ obj, searched }: { obj: RoomObject; searched: boolean }) {
-  const height = OBJECT_HEIGHTS[obj.type] ?? 1;
+  const height = objectHeight(obj.type);
 
   if (obj.type === "light") {
     return (
